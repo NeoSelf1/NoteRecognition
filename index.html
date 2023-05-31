@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <title>Hello OpenCV.js</title>
+  </head>
+  <body>
+    <h2>악보 계이름 추출</h2>
+    <p id="status">OpenCV.js 로딩중.</p>
+    <div class="caption">
+      imageSrc <input type="file" id="fileInput" name="file" />
+    </div>
+    <div class="caption">canvasOutput</div>
+    <div>
+      <div style="display: flex; flex-direction: row;" class="inputoutput">
+        <img style="width:50%" id="imageSrc" alt="" />
+        <canvas id="canvasOutput" style="width:50%"></canvas>
+ 
+    </div>
+    <script type="text/javascript">
+      let imgElement = document.getElementById('imageSrc');
+  
+      let inputElement = document.getElementById('fileInput');
+      inputElement.addEventListener(
+        'change',
+        (e) => {
+          imgElement.src = URL.createObjectURL(e.target.files[0]);
+          console.log("test",imgElement)
+        },
+        false
+      );
+
+      imgElement.onload = function () {
+        let image_1 = remove_noise(imgElement)
+        let image_2 =remove_line(image_1)
+        let image_3= normalization(image_2.image,image_2.myStaves,10)
+        let [image_4,objects_4]=object_detection(image_3.resizedImg,image_3.myStaves)
+        let [image_5,objects_5]=recognition(image_4,image_3.myStaves,objects_4)        
+        //window.ReactNativeWebView.postMessage(JSON.stringify({type: "data", data: objects_5}));
+        cv.imshow('canvasOutput', image_5);
+      };
+      
+      var Module = {
+        // https://emscripten.org/docs/api_reference/module.html#Module.onRuntimeInitialized
+        onRuntimeInitialized() {
+          // console.log('OpenCV.js is ready.')              
+          document.getElementById('status').innerHTML = 'OpenCV.js 준비됨';
+        },
+      };
+    </script>
+    <script src="./functions.js" type="text/javascript"></script>
+
+    <script async src="opencv.js" type="text/javascript"></script>
+  </body>
+</html>
