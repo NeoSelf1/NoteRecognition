@@ -47,14 +47,14 @@ function remove_line(image){
     }
     let myStaves=staves.map((arr)=> arr[0])
     for (let i =0; i<myStaves.length; i++){
-       //cv.line(image,new cv.Point(0,myStaves[i]),new cv.Point(image.cols,myStaves[i]),new cv.Scalar(255,0,0))
-
-       if (i%5==4){
+       //cv.line(image,new cv.Point(0,myStaves[i]),new cv.Point(image.cols,myStaves[i]),new cv.Scalar(125,0,0))//Staves 위치 알려주는
+      //  if (i%5==4){
         //이 네모는 단순히 마디 간의 사이를 가로질러 Object 객체가 지나치게 크게 검출되는 것을 막는 것.
-        cv.rectangle(image,new cv.Point(image.cols/2-300,(myStaves[i]+myStaves[i+1])/2-0.1),new cv.Point(image.cols,(myStaves[i]+myStaves[i+1])/2+0.1),new cv.Scalar(255, 0, 0),1,cv.LINE_AA,0)//가리는거
-      }
+        //cv.rectangle(image,new cv.Point(image.cols/2-300,(myStaves[i]+myStaves[i+1])/2-0.1),new cv.Point(image.cols,(myStaves[i]+myStaves[i+1])/2+0.1),new cv.Scalar(255, 0, 0),1,cv.LINE_AA,0)//가리는거
+        // cv.rectangle(image,new cv.Point(0,(myStaves[i]+myStaves[i+1])/2-1.5),new cv.Point(image.cols,(myStaves[i]+myStaves[i+1])/2+1.5),new cv.Scalar(0, 0, 0),-1,cv.LINE_AA,0)//가리는거
+      // }
     }
-    console.log(myStaves)
+    //console.log(myStaves)
     return {image,myStaves}
 }
 
@@ -181,11 +181,11 @@ function remove_noise(imgElement){
         stats.intAt(row, cv.CC_STAT_HEIGHT)
       ]
       if (mat_thresh.size().height*0.8>h && w>mat_thresh.size().width*0.5){
-        cv.rectangle(mask,new cv.Point(x1,y1),new cv.Point(x1+w,y1+h),new cv.Scalar(255, 255, 255),-1,cv.LINE_AA,0)
+        cv.rectangle(mask,new cv.Point(x1,y1),new cv.Point(x1+w,y1+h),new cv.Scalar(255, 255, 255),-1,cv.LINE_AA,0);
       }
     }
     let masked_img = new cv.Mat();
-    cv.bitwise_and(mask,mask,masked_img,mat_thresh)
+    cv.bitwise_and(mask,mask,masked_img,mat_thresh);
     mat.delete();
     mat_gray.delete();
     mat_thresh.delete();
@@ -244,6 +244,7 @@ function object_detection(image,staves){
     )
     let lines = parseInt((staves.length)/5)
     let objects= []
+    var wordHeight = parseInt(staves[9]-staves[0])
     for (let i =0;i<nLabel;i++){
       const [x1, y1, w, h,area] = [
         stats.intAt(i, cv.CC_STAT_LEFT),
@@ -252,66 +253,74 @@ function object_detection(image,staves){
         stats.intAt(i, cv.CC_STAT_HEIGHT),
         stats.intAt(i, cv.CC_STAT_AREA)
       ]
-      if (w>=weighted(5)&&w<image.cols*0.5 && h>=weighted(5)&&h<image.rows*0.5){
-        let center= get_center(y1,h)
+      console.log('staves =',staves)
+      //마디선
+      // if (w>=weighted(5)&&w<image.cols*0.5 && h>=weighted(5)&&h<image.rows*0.5){
+      if (w<image.cols*0.5 && h>=weighted(5)&&h<image.rows*0.5){
+        let center= get_center(y1,h);
+        //image, VERTICAL, axisvalue, startPos,endPos,standard
+        for (let i = x1;i < x1+w; i++){
+          let [end, pixels]= get_line(image,VERTICAL,i,y1,y1+h,wordHeight-weighted(10));//~~
+          if (pixels>0){
+            cv.line(image,new cv.Point(i,y1),new cv.Point(i,end),new cv.Scalar(125,0,0))//wordLine
+            put_text(image,wordHeight,new cv.Point(i,end+weighted(2)));
+          }
+        }
+
         //어디 line에 속해있는지 가려내는 for문
+
         for (let line=0; line<lines; line++){
-          let area_top = staves[line*5]-weighted(20)
-          let area_bot = staves[(line+1)*5-1]+weighted(20)
-          //여기가 모든 문제의 원인!
+          let area_top = staves[line*5]-weighted(20);
+          let area_bot = staves[(line+1)*5-1]+weighted(20);
           //오선 두칸 정도 더해진 범위 안에 center(y좌표)가 포함된다면, 해당 보표에 속해있는 객체이다.
           if (area_top<=center && center<=area_bot){//여기가 문제!
-            let stats = [x1,y1,w,h,area]
-            let stems= stem_detection(image,stats,30)
+            let stats = [x1,y1,w,h,area];
+            let stems= stem_detection(image,stats,30);
             let direction='none';
             if (stems.length>0){
-              if (stems[0][0]-stats[0] >= weighted(5)){
-                direction='true'
+              if (stems[0][0]-stats[0]>=weighted(5)){
+                direction='true';
               } else {
-                direction='false'
+                direction='false';
               }
             }
-            objects.push([line,[x1,y1,w,h,area],stems,direction])
-            // cv.rectangle(image,new cv.Point(x1,y1),new cv.Point(x1+w,y1+h),new cv.Scalar(255, 255, 255),1,cv.LINE_AA,0)//전체영역***
-
+            objects.push([line,[x1,y1,w,h,area],stems,direction]);
+            cv.rectangle(image,new cv.Point(x1,y1),new cv.Point(x1+w,y1+h),new cv.Scalar(255, 255, 255),1,cv.LINE_AA,0);//전체영역***
           }
         }
       }
     }
-    objects.sort()
+    objects.sort();
     return [image,objects]
 }
 
 function recognition(image, staves, objects) {
-  let finalPitches = [];
-  let objectsMask=[]
-  let object_2=[]
-  let object_3=[]
-  let maxLine=0
+  let object_2=[];
+  let object_3=[];
+  let maxLine=0;
   for (let i = 1; i < objects.length; i++) {
     let obj = objects[i];
     let line = obj[0];
     if (line>maxLine){
-      maxLine=line
+      maxLine=line;
     }
     let stats = obj[1];
     let stems = obj[2];
     let direction = obj[3];
-    let [x, y, w, h, area] = stats;
     let staff = staves.slice(line * 5, (line + 1) * 5);
     const pitch = recognize_note(image, staff, stats, stems, direction,objects);
     if (pitch.length>0){
       for (let j =0; j<pitch.length;j++){
-        object_2.push([objects[i][objects[i].length-4],pitch[j]])
+        object_2.push([objects[i][objects[i].length-4],pitch[j]]);
       } 
     }
     //255=길이, stem별로 끊었기에.
   }
   for (let i=0; i<maxLine+1; i++){
-    let tempForSort=[]
+    let tempForSort=[];
     for (let j=0;j<object_2.length;j++){
-      if (object_2[j][0]==i){//줄기로 연결되어있는 다수의 음표머리의 경우에는, 밀려서 line변수가 기준이 되지 않음
-        tempForSort.push(object_2[j])//****
+      if (object_2[j][0]==i){ //줄기로 연결되어있는 다수의 음표머리의 경우에는, 밀려서 line변수가 기준이 되지 않음
+        tempForSort.push(object_2[j]); //****
       }
     }
     // console.log(tempForSort)
@@ -322,13 +331,13 @@ function recognition(image, staves, objects) {
       if (a[1][1]<b[1][1]){
         return -1;
       }
-      return 0
+      return 0;
     })
-    object_3.push(tempForSort)
+    object_3.push(tempForSort);
   }
   for (let i=0;i<object_3.length;i++){
     for(let j=0;j<object_3[i].length;j++){
-      put_text(image,object_3[i][j][1][0],new cv.Point(object_3[i][j][1][1],staves[object_3[i][j][0]*5+4]+weighted(60)))
+      put_text(image,object_3[i][j][1][0],new cv.Point(object_3[i][j][1][1],staves[object_3[i][j][0]*5+4]+weighted(60)));
     }
   }
   return [image, object_3];
@@ -339,21 +348,20 @@ function recognize_pitch(image,staff,head_center){
   let distance=image.cols;
   let finalI;
   for (let i =0; i<pitch_lines.length; i++){
-    let line= pitch_lines[i]
+    let line= pitch_lines[i];
     // cv.rectangle(image, new cv.Point(10,parseInt(line)),new cv.Point(image.cols,parseInt(line)), new cv.Scalar(255, 255, 255), 0.5,cv.LINE_AA,0)//neo2
     //line 높이도 적절하게 측정되었음
     //각 오선 라인의 y좌표값
-    let newDist= Math.abs(line-head_center)
+    let newDist= Math.abs(line-head_center);
     if (newDist<distance){
-      finalI=i
-      distance=newDist
+      finalI=i;
+      distance=newDist;
     }
   }
   return finalI
 }
 function recognize_note(image, staff, stats, stems, direction,objects) {
   let [x, y, w, h, area] = stats;
-  let noteX = []
   let pitches = []
   //줄기가 존재하는 대상에 한해 recognize_note_head가 실해됨. 온음표는 애초에 인식하기 용이한 구조
   //note condition

@@ -6,7 +6,7 @@
     <script async src="https://docs.opencv.org/3.4/opencv.js" onload="onOpenCVReady();"></script>
   </head>
   <body>
-    <div style="display:none">
+    <div style="display:none;">
       <img id="0" style="width:16%" crossorigin="anonymous" src='https://blog.kakaocdn.net/dn/cfJRv5/btqEljPqrQt/a9uSkk4O2F0xCroeO8SFy1/img.png' alt = '조정하'/>
       <img id="1" style="width:16%" crossorigin="anonymous" src='https://cdn.imweb.me/upload/S20200724abcb07db26ecf/13cf396749723.jpg' alt = 'true'/>
       <img id="2" style="width:16%" crossorigin="anonymous" src='https://cdn.ustatik.com/musescore/scoredata/g/a500c3ff00a0e180ea5e77e13d978b6f7f8e99ff/score_0.svg?no-cache=1667829161' alt = '첫사랑'/>
@@ -15,14 +15,13 @@
       <img id="5" style="width:16%" crossorigin="anonymous" src='https://blog.kakaocdn.net/dn/b2kuaR/btqwdA5sEt5/LPIm1fxENPjH51dj9Y7x31/img.jpg' alt = 'Summer'/>
     </div>
     <div>
-      <canvas style="width:16%" id="_0"></canvas>
-      <canvas style="width:16%" id="_1"></canvas>
-      <canvas style="width:16%" id="_2"></canvas>
-      <canvas style="width:16%" id="_3"></canvas>
-      <canvas style="width:16%" id="_4"></canvas>
-      <canvas style="width:16%" id="_5"></canvas>
+      <canvas style="width:24%" id="_0"></canvas>
+      <canvas style="width:24%" id="_1"></canvas>
+      <canvas style="width:24%" id="_2"></canvas>
+      <canvas style="width:24%" id="_3"></canvas>
+      <canvas style="width:24%" id="_4"></canvas>
+      <canvas style="width:24%" id="_5"></canvas>
     </div>
-
     <script type="text/javascript">
       function onOpenCVReady(){
         cv['onRuntimeInitialized']=()=>{
@@ -32,12 +31,12 @@
               imgElement = document.getElementById(`${i}`);
               let data=[]
               let image_1 = remove_noise(imgElement)
-              // let image_2 =remove_line(image_1)
-              // let image_3= normalization(image_2.image,image_2.myStaves,10)
-              // let [image_4,objects_4]=object_detection(image_3.resizedImg,image_3.myStaves)
+              let image_2 =remove_line(image_1)
+              let image_3= normalization(image_2.image,image_2.myStaves,10)
+              let [image_4,objects_4]=object_detection(image_3.resizedImg,image_3.myStaves)
               // let [image_5,objects_5]=recognition(image_4,image_3.myStaves,objects_4)  
               //data.push([image_3.resizedImg.cols,image_3.resizedImg.rows],image_2.myStaves,objects_5)
-              cv.imshow(`_${i}`,image_1)
+              cv.imshow(`_${i}`,image_4)
               console.log(data)
             }
           } catch(e){
