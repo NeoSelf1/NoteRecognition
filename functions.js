@@ -118,8 +118,7 @@ function closing(image){
 }
 
 function weighted(value){
-    //standard값이 변할때 코드가 정상작동되지 않음을 방지하고자 
-    //변수를 유동적으로 적용할 수 있는 함수 배치
+    //standard값이 변할때 코드가 정상작동되지 않음을 방지하고자 변수를 유동적으로 적용할 수 있는 함수 배치
     standard=10
     return parseInt(value*(standard/10))
 }
@@ -141,10 +140,10 @@ function get_line(image, axis, axisValue, start, end, length) {
       points = Array.from({length: end - start}, (_, i) => [axisValue, i + start]);
     }
     for (let i = 0; i < points.length; i++) {
-      [y, x] = points[i]; //이 배치 옳다
-      pixels += (image.ucharPtr(y,x)[0]==255 || image.ucharPtr(y,x-1)[0]==255 || image.ucharPtr(y,x+1)[0]==255);//문제의 코드
+      [y, x] = points[i];//y,x 순서임에 유의할 것! 
+      //Threshold 과정에서 픽셀이 다 추출되지 않아, 줄기 형태가 온전치 않을 상황을 대비
+      pixels += (image.ucharPtr(y,x-1)[0]==255 || image.ucharPtr(y,x)[0]==255 || image.ucharPtr(y,x+1)[0]==255);
       const nextPoint = axis ? [(image.ucharPtr(y + 1,x)[0]),(image.ucharPtr(y + 1,x-1)[0])] : (image.ucharPtr(y,x+1));
-
       if ((nextPoint[0] == 0 && nextPoint[1] == 0 ) || i == points.length - 1) {//line의 두께가 일정수치를 넘어가면 line이 아니라고 인식
         if (pixels >= weighted(length)) {
           break;
@@ -161,9 +160,9 @@ function count_rect_pixels(image, rect) {
     let pixels = 0;
     for (let row = y; row < y + h; row++) {
         for (let col = x; col < x + w; col++) {
-        if (image.ucharPtr(row,col)[0] == 255) {
-            pixels += 1;
-        }
+          if (image.ucharPtr(row,col)[0] == 255) {
+              pixels += 1;
+          }
         }
     }
     return pixels;
@@ -222,33 +221,6 @@ function remove_noise(imgElement){
 //   }
 // }
 
-function stem_detection(image,stats,length){
-    const [x, y, w, h, area] = stats
-    const stems=[]
-    //column = x, row = y
-  //반복횟수 = w만큼 실행됨 -> 13 , 8 ,18 , 8 ...
-
-    for (let col=x; col<x+w; col++){
-      //각 음표의 최좌단 최우단 x좌표를 모두 훑어보며 get_line을 통해 음표의 특징이 되는 기둥의 유무를 파악한다
-      const [end,pixels]=get_line(image,VERTICAL,col,y,y+h,length)
-      //image, axis, axisValue, start, end, length
-      //문제는 get_line!에서 pixels!=0 횟수가 적게 검출
-
-      //col==axis_value,해당 x좌표를 계속 바꾸며 전체 음표의 최하단-최상단 사이에 length
-      //(선의 최소 길이 조건)이상의 선이 있는지 확인
-      if (pixels>0){
-        if (stems.length==0 || Math.abs(stems.slice(-1)[0][0] + stems.slice(-1)[0][2]-col)>=1){
-          stems.push([col,end-pixels+1,1,pixels])//(x, y, w, h)
-        } else {
-          //이전 기둥과 바로 붙어있는 (이전 기둥의 x좌표+너비와 현재 기둥 x좌표 간의 차이가 0일때)
-          //경우, 이전 기둥의 너비를 단순히 넓히는 것으로 마무리
-          stems.slice(-1)[0][2]++
-        }
-      }
-    }
-    return stems
-}
-
 function object_detection(image,staves){
     let closing_image= closing(image)
     let label = new cv.Mat() // Label image (CV_32SC1 or CV_16UC1)
@@ -264,25 +236,6 @@ function object_detection(image,staves){
     )
     let lines = parseInt((staves.length)/5)
     let objects= []
-    var wordHeight = parseInt(staves[9]-staves[0])
-    //마디개수만큼 반복
-    for (let y=0; y<staves.length; y=y+5){
-      //각 마디마다 x좌표 traverse
-      for (let col = 0; col<image.cols;col++){
-        //각 x좌표마다 마디높이만큼 세로로 traverse를 반복
-        var pixels=0;
-        for (let row = staves[y]; row<staves[y+4];row++){
-          pixels += (image.ucharPtr(row,col)[0]>200)
-          console.log(pixels)
-          //만일 일정길이 이상의 선이 검출되면, 이를 세로 마디선으로 인식, 제거
-          if (pixels>=wordHeight-weighted(30)){
-            cv.line(image,new cv.Point(col,row),new cv.Point(col,row+wordHeight),new cv.Scalar(125,0,0))//wordLine
-            put_text(image,wordHeight,new cv.Point(col,row+wordHeight+weighted(2)));
-          }
-        }
-        
-      }
-    }//~~
     for (let i =0;i<nLabel;i++){
       const [x1, y1, w, h,area] = [
         stats.intAt(i, cv.CC_STAT_LEFT),
@@ -291,11 +244,9 @@ function object_detection(image,staves){
         stats.intAt(i, cv.CC_STAT_HEIGHT),
         stats.intAt(i, cv.CC_STAT_AREA)
       ]
-      //마디선
       // if (w>=weighted(5)&&w<image.cols*0.5 && h>=weighted(5)&&h<image.rows*0.5){
       if (w<image.cols*0.5 && h>=weighted(5)&&h<image.rows*0.5){
         let center= get_center(y1,h);
-        
         //어디 line에 속해있는지 가려내는 for문
         for (let line=0; line<lines; line++){
           let area_top = staves[line*5]-weighted(20);
@@ -317,9 +268,37 @@ function object_detection(image,staves){
           }
         }
       }
+      'asdf'
     }
     objects.sort();
     return [image,objects]
+}
+
+function stem_detection(image,stats,length){
+  const [x, y, w, h, area] = stats
+  const stems=[]
+  //column = x, row = y
+  //반복횟수 = w만큼 실행됨 -> 13 , 8 ,18 , 8 ...
+
+  for (let col=x; col<x+w; col++){
+    //각 음표의 최좌단 최우단 x좌표를 모두 훑어보며 get_line을 통해 음표의 특징이 되는 기둥의 유무를 파악한다
+    const [end,pixels]=get_line(image,VERTICAL,col,y,y+h,length)
+    //image, axis, axisValue, start, end, length
+    //문제는 get_line!에서 pixels!=0 횟수가 적게 검출
+
+    //col==axis_value,해당 x좌표를 계속 바꾸며 전체 음표의 최하단-최상단 사이에 length
+    //(선의 최소 길이 조건)이상의 선이 있는지 확인
+    if (pixels>0){
+      if (stems.length==0 || Math.abs(stems.slice(-1)[0][0] + stems.slice(-1)[0][2]-col)>=1){
+        stems.push([col,end-pixels+1,1,pixels])//(x, y, w, h)
+      } else {
+        //이전 기둥과 바로 붙어있는 (이전 기둥의 x좌표+너비와 현재 기둥 x좌표 간의 차이가 0일때)
+        //경우, 이전 기둥의 너비를 단순히 넓히는 것으로 마무리
+        stems.slice(-1)[0][2]++
+      }
+    }
+  }
+  return stems
 }
 
 function recognition(image, staves, objects) {
