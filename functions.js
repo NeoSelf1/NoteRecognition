@@ -214,12 +214,6 @@ function remove_noise(imgElement){
     mask.delete();
     return masked_img
 }
-// function recognize_note_tail(image,index,stem,direction){
-//   let [x,y,w,h]=stem
-//   if (direction=="true"){
-
-//   }
-// }
 
 function object_detection(image,staves){
     let closing_image= closing(image)
@@ -283,30 +277,36 @@ function object_detection(image,staves){
         }
       }
     }
+    var stems;
     for (let i=0; i<objects.length;i++){
-      let stems= stem_detection(image,objects[i],30);
+      for (let j=0; j<objects[i].length;j++){
+        stems = stem_detection(image,objects[i][j],30);
+      }
+    }
+    for (let i=0; i<stems.length;i++){
+      let [col,upperEnd,height]=stems[i];
+      console.log("stems[i]=",stems[i])
+      cv.line(image, new cv.Point(col,upperEnd), new cv.Point(col,upperEnd+height), new cv.Scalar(125,0,0),1);
     }
     return [image,objects]
 }
   //column = x, row = y
 function stem_detection(image,stats,length){
   const [x, y, w, h] = stats
+
   const stems=[]
-  //반복횟수 = w만큼 실행됨 -> 13 , 8 ,18 , 8 ...
+  //너비만큼 x좌표를 traverse
   for (let col=x; col<x+w; col++){
     //각 음표의 최좌단 최우단 x좌표를 모두 훑어보며 get_line을 통해 음표의 특징이 되는 기둥의 유무를 파악한다
-    const [end,pixels]=get_line(image,VERTICAL,col,y,y+h,length)
-    //image, axis, axisValue, start, end, length
-    //문제는 get_line!에서 pixels!=0 횟수가 적게 검출
-
+    const [end,pixels]=get_line(image,VERTICAL,col,y,y+h,length) //image, axis, axisValue, start, end, length
     //col==axis_value,해당 x좌표를 계속 바꾸며 전체 음표의 최하단-최상단 사이에 length
     //(선의 최소 길이 조건)이상의 선이 있는지 확인
     if (pixels>0){
+      //이전 기둥과 바로 붙어있지 않고 (이전 기둥의 x좌표+너비와 현재 기둥 x좌표 간의 차이가 0일때), 처음으로 나온 줄기일때.
       if (stems.length==0 || Math.abs(stems.slice(-1)[0][0] + stems.slice(-1)[0][2]-col)>=1){
-        stems.push([col,end-pixels+1,1,pixels])//(x, y, w, h)
+        stems.push([col,end-pixels,pixels])//(x좌표, 상단끝, 길이)
       } else {
-        //이전 기둥과 바로 붙어있는 (이전 기둥의 x좌표+너비와 현재 기둥 x좌표 간의 차이가 0일때)
-        //경우, 이전 기둥의 너비를 단순히 넓히는 것으로 마무리
+        //이전 기둥의 너비를 단순히 넓힘
         stems.slice(-1)[0][2]++
       }
     }
