@@ -8,11 +8,32 @@ function remove_line(image){
     let width = image.cols;
     let height= image.rows;
     staves= [];
-
+    //세로 마디 선을 파악하기 위해 각 x좌표에서 검출되는 pixel 수를 row가 늘어감에 따라 누적시키고, 일정 길이를 넘어가면 이를 가리고, 해당 x좌표의 pixels 값 초기화
+    const wordlineArr = Array.from(Array(width), () => Array(2).fill(0))
+    var stdHeight = height*0.05
     for (let row = 0; row<height; row++){
       var pixels=0;
+      if (staves.length==2 && stdHeight == height*0.05){
+        stdHeight = 10*(staves[1][0]-staves[0][0])
+      }
       for (let col = 0; col<width;col++){
-        pixels += (image.ucharPtr(row,col)[0]>200)
+        pixels += (image.ucharPtr(row,col)[0]==255)
+        //같은 x좌표를 공유하는 2개의 하얀 점이 세로로 인접할때, 줄의 길이를 의미하는 wordlineArr[col][0]에 1을 더함
+        if(image.ucharPtr(row,col)[0]==255 && image.ucharPtr(row-1,col)[0]==255){
+          wordlineArr[col][0]++;
+          if(
+            wordlineArr[col][0]>=stdHeight && //세로 선 길이가 stdHeight보다 더 길고,
+            image.ucharPtr(row+1,col)[0]==0 && image.ucharPtr(row+1,col+1)[0]==0// 줄이 그 밑에서 끊길때(선의 끝에 도달할때)
+            ){
+            //선을 그린 후에
+            cv.line(image, new cv.Point(col,wordlineArr[col][1]-stdHeight*0.2), new cv.Point(col,row+stdHeight*0.2), new cv.Scalar(0,0,0),3);
+            wordlineArr[col][0]=0;//, 수치를 초기화
+          }
+        } else {
+          //인접하지 않을때, 즉 줄이 끊기면 마디선이 아님으로 파악하고 다시 계산을 하기 위해 모든 수치 초기화
+          wordlineArr[col][0]=0;//줄의 길이는 0으로
+          wordlineArr[col][1]=row;//시작하는 y좌표는 현재 y좌표로
+        }
       }
       /**가로선을 검출하기 직전에 가로선의 조건이 총족되는 지 확인하는 구문 
       (각 y좌표마다 같은 높이의 픽셀들 간, 하얀 픽셀들의 개수만큼 line을 그린다*/
@@ -46,14 +67,14 @@ function remove_line(image){
       }
     }
     let myStaves=staves.map((arr)=> arr[0])
-    for (let i =0; i<myStaves.length; i++){
+    //for (let i =0; i<myStaves.length; i++){
        //cv.line(image,new cv.Point(0,myStaves[i]),new cv.Point(image.cols,myStaves[i]),new cv.Scalar(125,0,0))//Staves 위치 알려주는
       //  if (i%5==4){
         //이 네모는 단순히 마디 간의 사이를 가로질러 Object 객체가 지나치게 크게 검출되는 것을 막는 것.
         //cv.rectangle(image,new cv.Point(image.cols/2-300,(myStaves[i]+myStaves[i+1])/2-0.1),new cv.Point(image.cols,(myStaves[i]+myStaves[i+1])/2+0.1),new cv.Scalar(255, 0, 0),1,cv.LINE_AA,0)//가리는거
         // cv.rectangle(image,new cv.Point(0,(myStaves[i]+myStaves[i+1])/2-1.5),new cv.Point(image.cols,(myStaves[i]+myStaves[i+1])/2+1.5),new cv.Scalar(0, 0, 0),-1,cv.LINE_AA,0)//가리는거
       // }
-    }
+    //}
     //console.log(myStaves)
     return {image,myStaves}
 }
@@ -245,6 +266,24 @@ function object_detection(image,staves){
     let lines = parseInt((staves.length)/5)
     let objects= []
     var wordHeight = parseInt(staves[9]-staves[0])
+    //마디개수만큼 반복
+    for (let y=0; y<staves.length; y=y+5){
+      //각 마디마다 x좌표 traverse
+      for (let col = 0; col<image.cols;col++){
+        //각 x좌표마다 마디높이만큼 세로로 traverse를 반복
+        var pixels=0;
+        for (let row = staves[y]; row<staves[y+4];row++){
+          pixels += (image.ucharPtr(row,col)[0]>200)
+          console.log(pixels)
+          //만일 일정길이 이상의 선이 검출되면, 이를 세로 마디선으로 인식, 제거
+          if (pixels>=wordHeight-weighted(30)){
+            cv.line(image,new cv.Point(col,row),new cv.Point(col,row+wordHeight),new cv.Scalar(125,0,0))//wordLine
+            put_text(image,wordHeight,new cv.Point(col,row+wordHeight+weighted(2)));
+          }
+        }
+        
+      }
+    }//~~
     for (let i =0;i<nLabel;i++){
       const [x1, y1, w, h,area] = [
         stats.intAt(i, cv.CC_STAT_LEFT),
@@ -253,22 +292,12 @@ function object_detection(image,staves){
         stats.intAt(i, cv.CC_STAT_HEIGHT),
         stats.intAt(i, cv.CC_STAT_AREA)
       ]
-      console.log('staves =',staves)
       //마디선
       // if (w>=weighted(5)&&w<image.cols*0.5 && h>=weighted(5)&&h<image.rows*0.5){
       if (w<image.cols*0.5 && h>=weighted(5)&&h<image.rows*0.5){
         let center= get_center(y1,h);
-        //image, VERTICAL, axisvalue, startPos,endPos,standard
-        for (let i = x1;i < x1+w; i++){
-          let [end, pixels]= get_line(image,VERTICAL,i,y1,y1+h,wordHeight-weighted(10));//~~
-          if (pixels>0){
-            cv.line(image,new cv.Point(i,y1),new cv.Point(i,end),new cv.Scalar(125,0,0))//wordLine
-            put_text(image,wordHeight,new cv.Point(i,end+weighted(2)));
-          }
-        }
-
+        
         //어디 line에 속해있는지 가려내는 for문
-
         for (let line=0; line<lines; line++){
           let area_top = staves[line*5]-weighted(20);
           let area_bot = staves[(line+1)*5-1]+weighted(20);

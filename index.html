@@ -29,15 +29,15 @@
             var imgElement;
             for (let i=0; i< 6; i++){
               imgElement = document.getElementById(`${i}`);
-              let data=[]
-              let image_1 = remove_noise(imgElement)
+              //let data=[]
+              let image_1 =remove_noise(imgElement)
               let image_2 =remove_line(image_1)
               let image_3= normalization(image_2.image,image_2.myStaves,10)
               let [image_4,objects_4]=object_detection(image_3.resizedImg,image_3.myStaves)
               // let [image_5,objects_5]=recognition(image_4,image_3.myStaves,objects_4)  
               //data.push([image_3.resizedImg.cols,image_3.resizedImg.rows],image_2.myStaves,objects_5)
               cv.imshow(`_${i}`,image_4)
-              console.log(data)
+              //console.log(data)
             }
           } catch(e){
             console.log(e)
