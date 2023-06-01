@@ -234,52 +234,65 @@ function object_detection(image,staves){
       4,
       cv.CV_32S
     )
-    let lines = parseInt((staves.length)/5)
-    let objects= []
+    let lines = parseInt((staves.length)/5)//6 or 7
+    const objects = [...new Array(lines)].map(() => []);
     for (let i =0;i<nLabel;i++){
-      const [x1, y1, w, h,area] = [
+      const [x, y, w, h] = [
         stats.intAt(i, cv.CC_STAT_LEFT),
         stats.intAt(i, cv.CC_STAT_TOP),
         stats.intAt(i, cv.CC_STAT_WIDTH),
-        stats.intAt(i, cv.CC_STAT_HEIGHT),
-        stats.intAt(i, cv.CC_STAT_AREA)
+        stats.intAt(i, cv.CC_STAT_HEIGHT)
       ]
-      // if (w>=weighted(5)&&w<image.cols*0.5 && h>=weighted(5)&&h<image.rows*0.5){
-      if (w<image.cols*0.5 && h>=weighted(5)&&h<image.rows*0.5){
-        let center= get_center(y1,h);
+      //객체의 기초조건(크기)을 충족하였는가
+      if (w < image.cols*0.5 && weighted(5) <= h && h < image.rows*0.5){ //if (w>=weighted(5)&&w<image.cols*0.5 && h>=weighted(5)&&h<image.rows*0.5){
+        let objCenter= get_center(y,h);
+        let dist=9999;
+        let finalLine;
         //어디 line에 속해있는지 가려내는 for문
         for (let line=0; line<lines; line++){
-          let area_top = staves[line*5]-weighted(20);
-          let area_bot = staves[(line+1)*5-1]+weighted(20);
+          let area_center =(staves[line*5]+staves[(line+1)*5-1])/2;
           //오선 두칸 정도 더해진 범위 안에 center(y좌표)가 포함된다면, 해당 보표에 속해있는 객체이다.
-          if (area_top<=center && center<=area_bot){//여기가 문제!
-            let stats = [x1,y1,w,h,area];
-            let stems= stem_detection(image,stats,30);
-            let direction='none';
-            if (stems.length>0){
-              if (stems[0][0]-stats[0]>=weighted(5)){
-                direction='true';
-              } else {
-                direction='false';
-              }
-            }
-            objects.push([line,[x1,y1,w,h,area],stems,direction]);
-            cv.rectangle(image,new cv.Point(x1,y1),new cv.Point(x1+w,y1+h),new cv.Scalar(255, 255, 255),1,cv.LINE_AA,0);//전체영역***
+          if(dist>Math.abs(objCenter-area_center)){
+            dist=Math.abs(objCenter-area_center);
+            finalLine=line;
           }
         }
+        cv.rectangle(image,new cv.Point(x,y),new cv.Point(x+w,y+h), new cv.Scalar(255, 255, 255), 1, cv.LINE_AA, 0);//전체영역***
+        put_text(image,finalLine,new cv.Point(x+w,y+h));
+        objects[finalLine].push([x,y,w,h]);
       }
-      'asdf'
     }
-    objects.sort();
+    //같은 라인 중에서 좌 -> 우 순으로 정렬
+    let stdWidth=staves[2]-staves[0];
+    let stdHeight=staves[3]-staves[0];
+    for (let i =0; i<lines;i++){
+      objects[i].sort((a, b) => {
+          return a[0] - b[0]
+      })
+      let j =0;
+      //console.log("before=",objects[i].length);
+      while(true){
+        let [x,y,w,h] = objects[i][j]
+        if ((stdWidth<w)&&(stdHeight<h)){
+          objects[i]=objects[i].filter((_,id)=> (id>j));
+          //console.log("j=",j,"after=",objects[i].length);
+          cv.rectangle(image,new cv.Point(x,y),new cv.Point(x+w,y+h), new cv.Scalar(125, 0, 0), 4, cv.LINE_AA, 0);//조표***
+          break
+        } else{
+          j++;
+        }
+      }
+    }
+    for (let i=0; i<objects.length;i++){
+      let stems= stem_detection(image,objects[i],30);
+    }
     return [image,objects]
 }
-
-function stem_detection(image,stats,length){
-  const [x, y, w, h, area] = stats
-  const stems=[]
   //column = x, row = y
+function stem_detection(image,stats,length){
+  const [x, y, w, h] = stats
+  const stems=[]
   //반복횟수 = w만큼 실행됨 -> 13 , 8 ,18 , 8 ...
-
   for (let col=x; col<x+w; col++){
     //각 음표의 최좌단 최우단 x좌표를 모두 훑어보며 get_line을 통해 음표의 특징이 되는 기둥의 유무를 파악한다
     const [end,pixels]=get_line(image,VERTICAL,col,y,y+h,length)
