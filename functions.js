@@ -43,7 +43,7 @@ function remove_line(image){
       if (pixels>=width*0.7){
         /**(이전에 탐색된 오선의 y좌표+높이) - 현재 탐색된 오선 y좌표 간의 차이가 0이면
         붙어있는 하나의 오선이기에 무효. 1보다 크면 새로운 오선으로 인식*/
-        if (staves.length === 0 || Math.abs(staves.slice(-1)[0][0] + staves.slice(-1)[0][1] - row) > 1) {
+        if (staves.length === 0 || Math.abs(staves.slice(-1)[0][0]+staves.slice(-1)[0][1]-row) > 1){
           staves.push([row, 0]);//오선의 y좌표, 오선높이
         } else {
           staves.slice(-1)[0][1] += 1;
@@ -75,7 +75,6 @@ function remove_line(image){
         // cv.rectangle(image,new cv.Point(0,(myStaves[i]+myStaves[i+1])/2-1.5),new cv.Point(image.cols,(myStaves[i]+myStaves[i+1])/2+1.5),new cv.Scalar(0, 0, 0),-1,cv.LINE_AA,0)//가리는거
       // }
     //}
-    //console.log(myStaves)
     return {image,myStaves}
 }
 
@@ -107,8 +106,8 @@ function normalization(image,staves,standard){
     );
     let myStaves=staves.map((item)=>item*weight)
     resized.delete()
+    resized_gray.delete()
     return {resizedImg,myStaves}
-    resizedImg.delete()
 }
 
 function closing(image){
