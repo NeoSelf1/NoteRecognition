@@ -309,10 +309,7 @@ function stem_detection(image,stats,length,stdWidth){
         //음표가 밀접되어있는 구간을 줄기로 잘못 인식하는 문제 해결
         if (stems.length!=0 && col-stems[stems.length-1][0]<stdWidth*0.7){ //stems리스트 바로 전 요소와의 x좌표 거리가 머리 너비보다 좁으면
           if (stems[stems.length-1][3] < pixels){ //우측(더 최근에 검출된) 줄기가 더 길면
-            stems[stems.length-1][0] = col; //기존에 기록한 줄기 기록 대체
-            stems[stems.length-1][1] = end-pixels
-            stems[stems.length-1][2] = 1
-            stems[stems.length-1][3] = pixels
+            stems[stems.length-1] = [col,end-pixels,1,pixels]; //기존에 기록한 줄기 기록 대체
           }
         } else{
           stems.push([col,end-pixels,1,pixels])//(x좌표, 상단끝,너비, 길이)
