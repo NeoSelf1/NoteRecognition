@@ -277,16 +277,18 @@ function object_detection(image,staves){
         }
       }
     }
-    var stems;
+    var stems=[];
     for (let i=0; i<objects.length;i++){
       for (let j=0; j<objects[i].length;j++){
-        stems = stem_detection(image,objects[i][j],30);
+        stems.push(stem_detection(image,objects[i][j],stdHeight*1.2))
       }
     }
-    for (let i=0; i<stems.length;i++){
-      let [col,upperEnd,height]=stems[i];
-      console.log("stems[i]=",stems[i])
-      cv.line(image, new cv.Point(col,upperEnd), new cv.Point(col,upperEnd+height), new cv.Scalar(125,0,0),1);
+
+    for (let i=0; i<stems.length;i++){//244개의 요소, 각 요소는 0에서 4개까지의 배열이 존재
+      for (let j=0; j<stems[i].length; j++){
+        let [col,upperEnd,width,height]=stems[i][j];
+        cv.line(image, new cv.Point(col,upperEnd), new cv.Point(col,upperEnd+height), new cv.Scalar(125,0,0),3);
+      }
     }
     return [image,objects]
 }
@@ -304,13 +306,14 @@ function stem_detection(image,stats,length){
     if (pixels>0){
       //이전 기둥과 바로 붙어있지 않고 (이전 기둥의 x좌표+너비와 현재 기둥 x좌표 간의 차이가 0일때), 처음으로 나온 줄기일때.
       if (stems.length==0 || Math.abs(stems.slice(-1)[0][0] + stems.slice(-1)[0][2]-col)>=1){
-        stems.push([col,end-pixels,pixels])//(x좌표, 상단끝, 길이)
+        stems.push([col,end-pixels,1,pixels])//(x좌표, 상단끝,너비, 길이)
       } else {
         //이전 기둥의 너비를 단순히 넓힘
         stems.slice(-1)[0][2]++
       }
     }
   }
+  //stems 배열에 각 객체 내에서 검출된 stem들을 모두 저장한 후 반환.
   return stems
 }
 
