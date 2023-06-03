@@ -257,8 +257,8 @@ function object_detection(image,staves){
       }
     }
     //같은 라인 중에서 좌 -> 우 순으로 정렬
-    let stdWidth=staves[2]-staves[0];
-    let stdHeight=staves[3]-staves[0];
+
+    let noteHead_h=staves[2]-staves[0]; //음표머리의 높이
     for (let i =0; i<lines;i++){
       objects[i].sort((a, b) => {
           return a[0] - b[0]
@@ -267,7 +267,7 @@ function object_detection(image,staves){
       //console.log("before=",objects[i].length);
       while(true){
         let [x,y,w,h] = objects[i][j]
-        if ((stdWidth<w)&&(stdHeight<h)){
+        if ((noteHead_h<w)&&(noteHead_h*1.5<h)){
           objects[i]=objects[i].filter((_,id)=> (id>j));
           //console.log("j=",j,"after=",objects[i].length);
           cv.rectangle(image,new cv.Point(x,y),new cv.Point(x+w,y+h), new cv.Scalar(125, 0, 0), 4, cv.LINE_AA, 0);//조표***
@@ -280,7 +280,7 @@ function object_detection(image,staves){
     var stems=[];
     for (let i=0; i<objects.length;i++){
       for (let j=0; j<objects[i].length;j++){
-        stems.push(stem_detection(image,objects[i][j],stdHeight*1.1,stdWidth))
+        stems.push(stem_detection(image,objects[i][j],noteHead_h*1.6,noteHead_h))
       }
     }
 
@@ -288,14 +288,17 @@ function object_detection(image,staves){
       for (let j=0; j<stems[i].length; j++){
         let [col,upperEnd,width,height]=stems[i][j];
         cv.line(image, new cv.Point(col,upperEnd), new cv.Point(col,upperEnd+height), new cv.Scalar(125,0,0),3);
+        for (let i =0; i<height;i++){
+          if (image.ucharPtr(upperEnd-noteHead_h*0.5 + i,col+noteHead_h*0.5)[0]==255){
 
-
+        }
       }
     }
+  }
     return [image,objects]
 }
   //column = x, row = y
-function stem_detection(image,stats,length,stdWidth){
+function stem_detection(image,stats,length,noteHead_h){
   const [x, y, w, h] = stats
   const stems=[]
   //너비만큼 x좌표를 traverse
@@ -307,7 +310,7 @@ function stem_detection(image,stats,length,stdWidth){
     if (pixels>0){ //이전 기둥과 바로 붙어있지 않고 (이전 기둥의 x좌표+너비와 현재 기둥 x좌표 간의 차이가 0일때), 처음으로 나온 줄기일때.
       if (stems.length==0 || Math.abs(stems.slice(-1)[0][0] + stems.slice(-1)[0][2]-col)>=1){
         //음표가 밀접되어있는 구간을 줄기로 잘못 인식하는 문제 해결
-        if (stems.length!=0 && col-stems[stems.length-1][0]<stdWidth*0.7){ //stems리스트 바로 전 요소와의 x좌표 거리가 머리 너비보다 좁으면
+        if (stems.length!=0 && col-stems[stems.length-1][0]<noteHead_h*0.7){ //stems리스트 바로 전 요소와의 x좌표 거리가 머리 너비보다 좁으면
           if (stems[stems.length-1][3] < pixels){ //우측(더 최근에 검출된) 줄기가 더 길면
             stems[stems.length-1] = [col,end-pixels,1,pixels]; //기존에 기록한 줄기 기록 대체
           }
