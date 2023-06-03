@@ -216,86 +216,106 @@ function remove_noise(imgElement){
 }
 
 function object_detection(image,staves){
-    let closing_image= closing(image)
-    let label = new cv.Mat() // Label image (CV_32SC1 or CV_16UC1)
-    let stats = new cv.Mat() // value and area value forming the bounding box
-    let centroids = new cv.Mat() // centroid (x, y) (CV_64FC1)
-    let nLabel = cv.connectedComponentsWithStats(
-      closing_image,
-      label,
-      stats,
-      centroids,
-      4,
-      cv.CV_32S
-    )
-    let lines = parseInt((staves.length)/5)//6 or 7
-    const objects = [...new Array(lines)].map(() => []);
-    for (let i =0;i<nLabel;i++){
-      const [x, y, w, h] = [
-        stats.intAt(i, cv.CC_STAT_LEFT),
-        stats.intAt(i, cv.CC_STAT_TOP),
-        stats.intAt(i, cv.CC_STAT_WIDTH),
-        stats.intAt(i, cv.CC_STAT_HEIGHT)
-      ]
-      //객체의 기초조건(크기)을 충족하였는가
-      if (w < image.cols*0.5 && weighted(5) <= h && h < image.rows*0.5){ //if (w>=weighted(5)&&w<image.cols*0.5 && h>=weighted(5)&&h<image.rows*0.5){
-        let objCenter= get_center(y,h);
-        let dist=9999;
-        let finalLine;
-        //어디 line에 속해있는지 가려내는 for문
-        for (let line=0; line<lines; line++){
-          let area_center =(staves[line*5]+staves[(line+1)*5-1])/2;
-          //오선 두칸 정도 더해진 범위 안에 center(y좌표)가 포함된다면, 해당 보표에 속해있는 객체이다.
-          if(dist>Math.abs(objCenter-area_center)){
-            dist=Math.abs(objCenter-area_center);
-            finalLine=line;
+  let closing_image= closing(image)
+  let label = new cv.Mat() // Label image (CV_32SC1 or CV_16UC1)
+  let stats = new cv.Mat() // value and area value forming the bounding box
+  let centroids = new cv.Mat() // centroid (x, y) (CV_64FC1)
+  let nLabel = cv.connectedComponentsWithStats(
+    closing_image,
+    label,
+    stats,
+    centroids,
+    4,
+    cv.CV_32S
+  )
+  let lines = parseInt((staves.length)/5)//6 or 7
+  const objects = [...new Array(lines)].map(() => []);
+  for (let i =0;i<nLabel;i++){
+    const [x, y, w, h] = [
+      stats.intAt(i, cv.CC_STAT_LEFT),
+      stats.intAt(i, cv.CC_STAT_TOP),
+      stats.intAt(i, cv.CC_STAT_WIDTH),
+      stats.intAt(i, cv.CC_STAT_HEIGHT)
+    ]
+    //객체의 기초조건(크기)을 충족하였는가
+    if (w < image.cols*0.5 && weighted(5) <= h && h < image.rows*0.5){ //if (w>=weighted(5)&&w<image.cols*0.5 && h>=weighted(5)&&h<image.rows*0.5){
+      let objCenter= get_center(y,h);
+      let dist=9999;
+      let finalLine;
+      //어디 line에 속해있는지 가려내는 for문
+      for (let line=0; line<lines; line++){
+        let area_center =(staves[line*5]+staves[(line+1)*5-1])/2;
+        //오선 두칸 정도 더해진 범위 안에 center(y좌표)가 포함된다면, 해당 보표에 속해있는 객체이다.
+        if(dist>Math.abs(objCenter-area_center)){
+          dist=Math.abs(objCenter-area_center);
+          finalLine=line;
+        }
+      }
+      cv.rectangle(image,new cv.Point(x,y),new cv.Point(x+w,y+h), new cv.Scalar(255, 255, 255), 1, cv.LINE_AA, 0);//전체영역***
+      put_text(image,finalLine,new cv.Point(x+w,y+h));
+      objects[finalLine].push([x,y,w,h]);
+    }
+  }
+  //같은 라인 중에서 좌 -> 우 순으로 정렬
+
+  let noteHead_h=staves[2]-staves[0]; //음표머리의 높이
+  for (let i =0; i<lines;i++){
+    objects[i].sort((a, b) => {
+        return a[0] - b[0]
+    })
+    let j =0;
+    //console.log("before=",objects[i].length);
+    while(true){
+      let [x,y,w,h] = objects[i][j]
+      if ((noteHead_h<w)&&(noteHead_h*1.5<h)){
+        objects[i]=objects[i].filter((_,id)=> (id>j));
+        //console.log("j=",j,"after=",objects[i].length);
+        cv.rectangle(image,new cv.Point(x,y),new cv.Point(x+w,y+h), new cv.Scalar(125, 0, 0), 4, cv.LINE_AA, 0);//조표***
+        break
+      } else{
+        j++;
+      }
+    }
+  }
+  var stems=[];
+  for (let i=0; i<objects.length;i++){
+    for (let j=0; j<objects[i].length;j++){
+      stems.push(stem_detection(image,objects[i][j],noteHead_h*1.6,noteHead_h))
+    }
+  }
+
+  for (let i=0; i<stems.length;i++){//244개의 요소, 각 요소는 0에서 4개까지의 배열이 존재
+    for (let j=0; j<stems[i].length; j++){
+      let [col,upperEnd,width,height]=stems[i][j];
+      // cv.line(image, new cv.Point(col,upperEnd), new cv.Point(col,upperEnd+height), new cv.Scalar(125,0,0),3);//줄기위치 표시
+      for (let k =0; k<height;k++){
+        if (image.ucharPtr(upperEnd-noteHead_h*0.5 + k,col+2)[0]==255){
+          
+          if (j!=stems[i].length-1){//객체 내에서 가장 우측에 위치한 줄기가 아니면, 꼬리 탐색 시작
+            let tempX = col+2;
+            let tempY = upperEnd-noteHead_h*0.5 + k;
+            while(true){
+              if (tempX >=stems[i][j+1][0]){//우측에 있는 줄기의 x좌표보다 커지면, 꼬리로 분류!
+                cv.rectangle(image, new cv.Point(col, 2*(upperEnd-noteHead_h*0.5 + k)-tempY +12),new cv.Point(tempX,tempY), new cv.Scalar(0, 0, 0), -1,cv.LINE_AA,0)
+                break
+              } else {//우측의 줄기까지 아직 도달하지 못한 상황 => 연결된 꼬리가 아닌 단일 꼬리, 음표이거나 or 아직 계산중이거나
+                if(image.ucharPtr(tempY-1, tempX+1)[0]==255){
+                  tempX++
+                  tempY--
+                } else if (image.ucharPtr(tempY+1, tempX+1)[0]==255){
+                  tempX++
+                  tempY++
+                } else {//우측에 더이상 인접한 하얀픽셀이 없음 -> while문 탈출
+                  break
+                }
+              }
+            }
           }
-        }
-        cv.rectangle(image,new cv.Point(x,y),new cv.Point(x+w,y+h), new cv.Scalar(255, 255, 255), 1, cv.LINE_AA, 0);//전체영역***
-        put_text(image,finalLine,new cv.Point(x+w,y+h));
-        objects[finalLine].push([x,y,w,h]);
-      }
-    }
-    //같은 라인 중에서 좌 -> 우 순으로 정렬
-
-    let noteHead_h=staves[2]-staves[0]; //음표머리의 높이
-    for (let i =0; i<lines;i++){
-      objects[i].sort((a, b) => {
-          return a[0] - b[0]
-      })
-      let j =0;
-      //console.log("before=",objects[i].length);
-      while(true){
-        let [x,y,w,h] = objects[i][j]
-        if ((noteHead_h<w)&&(noteHead_h*1.5<h)){
-          objects[i]=objects[i].filter((_,id)=> (id>j));
-          //console.log("j=",j,"after=",objects[i].length);
-          cv.rectangle(image,new cv.Point(x,y),new cv.Point(x+w,y+h), new cv.Scalar(125, 0, 0), 4, cv.LINE_AA, 0);//조표***
-          break
-        } else{
-          j++;
-        }
-      }
-    }
-    var stems=[];
-    for (let i=0; i<objects.length;i++){
-      for (let j=0; j<objects[i].length;j++){
-        stems.push(stem_detection(image,objects[i][j],noteHead_h*1.6,noteHead_h))
-      }
-    }
-
-    for (let i=0; i<stems.length;i++){//244개의 요소, 각 요소는 0에서 4개까지의 배열이 존재
-      for (let j=0; j<stems[i].length; j++){
-        let [col,upperEnd,width,height]=stems[i][j];
-        cv.line(image, new cv.Point(col,upperEnd), new cv.Point(col,upperEnd+height), new cv.Scalar(125,0,0),3);
-        for (let i =0; i<height;i++){
-          if (image.ucharPtr(upperEnd-noteHead_h*0.5 + i,col+noteHead_h*0.5)[0]==255){
-
         }
       }
     }
   }
-    return [image,objects]
+  return [image,objects]
 }
   //column = x, row = y
 function stem_detection(image,stats,length,noteHead_h){
@@ -417,7 +437,7 @@ function recognize_note(image, staff, stats, stems, direction,objects) {
     put_text(image,direction,new cv.Point(x+(w/2)-weighted(10),y+h+weighted(50)))
     // cv.rectangle(image,new cv.Point(x,y),new cv.Point(x+w,y+h),new cv.Scalar(255, 255, 255),1,cv.LINE_AA,0)//neo1-headCenter
   }
-  cv.rectangle(image,new cv.Point(x,y),new cv.Point(x+w,y+h),new cv.Scalar(255, 255, 255),1,cv.LINE_AA,0)//neo-영역전체        
+  cv.rectangle(image,new cv.Point(x,y),new cv.Point(x+w,y+h),new cv.Scalar(125, 0, 0),1,cv.LINE_AA,0)//neo-영역전체        
 
   return pitches
 }
