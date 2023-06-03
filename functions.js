@@ -280,7 +280,7 @@ function object_detection(image,staves){
     var stems=[];
     for (let i=0; i<objects.length;i++){
       for (let j=0; j<objects[i].length;j++){
-        stems.push(stem_detection(image,objects[i][j],stdHeight*1.2))
+        stems.push(stem_detection(image,objects[i][j],stdHeight*1.1,stdWidth))
       }
     }
 
@@ -288,14 +288,15 @@ function object_detection(image,staves){
       for (let j=0; j<stems[i].length; j++){
         let [col,upperEnd,width,height]=stems[i][j];
         cv.line(image, new cv.Point(col,upperEnd), new cv.Point(col,upperEnd+height), new cv.Scalar(125,0,0),3);
+
+
       }
     }
     return [image,objects]
 }
   //column = x, row = y
-function stem_detection(image,stats,length){
+function stem_detection(image,stats,length,stdWidth){
   const [x, y, w, h] = stats
-
   const stems=[]
   //너비만큼 x좌표를 traverse
   for (let col=x; col<x+w; col++){
@@ -303,18 +304,25 @@ function stem_detection(image,stats,length){
     const [end,pixels]=get_line(image,VERTICAL,col,y,y+h,length) //image, axis, axisValue, start, end, length
     //col==axis_value,해당 x좌표를 계속 바꾸며 전체 음표의 최하단-최상단 사이에 length
     //(선의 최소 길이 조건)이상의 선이 있는지 확인
-    if (pixels>0){
-      //이전 기둥과 바로 붙어있지 않고 (이전 기둥의 x좌표+너비와 현재 기둥 x좌표 간의 차이가 0일때), 처음으로 나온 줄기일때.
+    if (pixels>0){ //이전 기둥과 바로 붙어있지 않고 (이전 기둥의 x좌표+너비와 현재 기둥 x좌표 간의 차이가 0일때), 처음으로 나온 줄기일때.
       if (stems.length==0 || Math.abs(stems.slice(-1)[0][0] + stems.slice(-1)[0][2]-col)>=1){
-        stems.push([col,end-pixels,1,pixels])//(x좌표, 상단끝,너비, 길이)
+        //음표가 밀접되어있는 구간을 줄기로 잘못 인식하는 문제 해결
+        if (stems.length!=0 && col-stems[stems.length-1][0]<stdWidth*0.7){ //stems리스트 바로 전 요소와의 x좌표 거리가 머리 너비보다 좁으면
+          if (stems[stems.length-1][3] < pixels){ //우측(더 최근에 검출된) 줄기가 더 길면
+            stems[stems.length-1][0] = col; //기존에 기록한 줄기 기록 대체
+            stems[stems.length-1][1] = end-pixels
+            stems[stems.length-1][2] = 1
+            stems[stems.length-1][3] = pixels
+          }
+        } else{
+          stems.push([col,end-pixels,1,pixels])//(x좌표, 상단끝,너비, 길이)
+        }
       } else {
-        //이전 기둥의 너비를 단순히 넓힘
-        stems.slice(-1)[0][2]++
+        stems.slice(-1)[0][2]++ //이전 기둥의 너비를 단순히 넓힘
       }
     }
   }
-  //stems 배열에 각 객체 내에서 검출된 stem들을 모두 저장한 후 반환.
-  return stems
+  return stems  //stems 배열에 각 객체 내에서 검출된 stem들을 모두 저장한 후 반환. 줄기가 없는 객체의 경우 [] 반환
 }
 
 function recognition(image, staves, objects) {
