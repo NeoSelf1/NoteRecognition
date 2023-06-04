@@ -230,6 +230,7 @@ function object_detection(image,staves){
   )
   let lines = parseInt((staves.length)/5)//6 or 7
   const objects = [...new Array(lines)].map(() => []);
+  //검출한 객체들의 stats를 objects 어레이에 추가 및 정렬하는 구문
   for (let i =0;i<nLabel;i++){
     const [x, y, w, h] = [
       stats.intAt(i, cv.CC_STAT_LEFT),
@@ -263,20 +264,25 @@ function object_detection(image,staves){
     objects[i].sort((a, b) => {
         return a[0] - b[0]
     })
+    //조표를 찾는 과정 => 자리표의 일부분이 최좌단에 위치한 객체로 잘못 인식될 수 있으므로, 
+    //일정 크기를 넘기는 조표가 나오기 전에 나오는 객체들은 모두 필터 요소로 판단
     let j =0;
-    //console.log("before=",objects[i].length);
     while(true){
       let [x,y,w,h] = objects[i][j]
       if ((noteHead_h<w)&&(noteHead_h*1.5<h)){
-        objects[i]=objects[i].filter((_,id)=> (id>j));
-        //console.log("j=",j,"after=",objects[i].length);
-        cv.rectangle(image,new cv.Point(x,y),new cv.Point(x+w,y+h), new cv.Scalar(125, 0, 0), 4, cv.LINE_AA, 0);//조표***
+        //
+        //자리표 분류 명령어가 들어가야하는 장소
+        //
+        objects[i]=objects[i].filter((_,id)=> (id>j));//조표로 인식된 개체보다 좌측에 있는 객체들은 추후 Recognition과정에서 제외
+        //cv.rectangle(image,new cv.Point(x,y),new cv.Point(x+w,y+h), new cv.Scalar(125, 0, 0), 4, cv.LINE_AA, 0);//조표위치 표시
         break
       } else{
         j++;
       }
     }
   }
+
+  //각 객체들 내에 위치한 줄기들을 검출하는 구간
   var stems=[];
   for (let i=0; i<objects.length;i++){
     for (let j=0; j<objects[i].length;j++){
@@ -284,21 +290,20 @@ function object_detection(image,staves){
     }
   }
 
-  for (let i=0; i<stems.length;i++){//244개의 요소, 각 요소는 0에서 4개까지의 배열이 존재
+  for (let i=0; i<stems.length;i++){//각 객체마다 줄기들의 배열을 갖고 있기 때문에, 2중 for문으로 줄기 접근이 필요
     for (let j=0; j<stems[i].length; j++){
       let [col,upperEnd,width,height]=stems[i][j];
       //꼬리가 시작되는 부분이 전체 객체 기준 조금 튀어나와있을 수 있음. 따라서 줄기 상하단 기준으로 여유공간이 추가된 높이만큼 탐색
       let spareSpace = parseInt(noteHead_h*0.5);
       for (let k = 0; k<height + 2*spareSpace;k++){
         if (image.ucharPtr(upperEnd - spareSpace + k,col+2)[0]==255){
-          if (j!=stems[i].length-1){//객체 내에서 가장 우측에 위치한 줄기가 아니면, 꼬리 탐색 시작
-            
+          if (j!=stems[i].length-1){//객체 내에서 가장 우측에 위치한 줄기가 아니면, 꼬리 탐색을 위해 우측방향으로 traverse
             let tempX = col+2;
             let tempY = upperEnd-noteHead_h*0.5 + k;
             while(true){
               if (tempX >=stems[i][j+1][0]){//우측에 있는 줄기의 x좌표보다 커지면, 꼬리로 분류!
                 cv.rectangle(image, new cv.Point(col, 2*(upperEnd-noteHead_h*0.5 + k)-tempY +noteHead_h*0.8),new cv.Point(tempX,tempY), new cv.Scalar(0, 0, 0), -1,cv.LINE_AA,0);
-                cv.rectangle(image, new cv.Point(col, 2*(upperEnd-noteHead_h*0.5 + k)-tempY +noteHead_h*0.8),new cv.Point(tempX,tempY), new cv.Scalar(190, 0, 0), 1,cv.LINE_AA,0);
+                //cv.rectangle(image, new cv.Point(col, 2*(upperEnd-noteHead_h*0.5 + k)-tempY +noteHead_h*0.8),new cv.Point(tempX,tempY), new cv.Scalar(190, 0, 0), 1,cv.LINE_AA,0);
                 break;
               } else {//우측의 줄기까지 아직 도달하지 못한 상황 => 연결된 꼬리가 아닌 단일 꼬리, 음표이거나 or 아직 계산중이거나
                 if(image.ucharPtr(tempY-1, tempX+1)[0]==255){
@@ -314,7 +319,10 @@ function object_detection(image,staves){
             }
           }
         }
+        //각 줄기에 대한 머리 음정을 파악하는 구문
+        //한 줄기 내에 검출된 음정 정보들을 어레이로 누적
       }
+      //objects[i]에 추가
       cv.line(image, new cv.Point(col,upperEnd), new cv.Point(col,upperEnd+height), new cv.Scalar(125,0,0),2);//줄기위치 표시
 
     }
