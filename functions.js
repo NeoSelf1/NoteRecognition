@@ -287,21 +287,23 @@ function object_detection(image,staves){
   for (let i=0; i<stems.length;i++){//244개의 요소, 각 요소는 0에서 4개까지의 배열이 존재
     for (let j=0; j<stems[i].length; j++){
       let [col,upperEnd,width,height]=stems[i][j];
-      // cv.line(image, new cv.Point(col,upperEnd), new cv.Point(col,upperEnd+height), new cv.Scalar(125,0,0),3);//줄기위치 표시
-      for (let k =0; k<height;k++){
-        if (image.ucharPtr(upperEnd-noteHead_h*0.5 + k,col+2)[0]==255){
-          
+      //꼬리가 시작되는 부분이 전체 객체 기준 조금 튀어나와있을 수 있음. 따라서 줄기 상하단 기준으로 여유공간이 추가된 높이만큼 탐색
+      let spareSpace = parseInt(noteHead_h*0.5);
+      for (let k = 0; k<height + 2*spareSpace;k++){
+        if (image.ucharPtr(upperEnd - spareSpace + k,col+2)[0]==255){
           if (j!=stems[i].length-1){//객체 내에서 가장 우측에 위치한 줄기가 아니면, 꼬리 탐색 시작
+            
             let tempX = col+2;
             let tempY = upperEnd-noteHead_h*0.5 + k;
             while(true){
               if (tempX >=stems[i][j+1][0]){//우측에 있는 줄기의 x좌표보다 커지면, 꼬리로 분류!
-                cv.rectangle(image, new cv.Point(col, 2*(upperEnd-noteHead_h*0.5 + k)-tempY +12),new cv.Point(tempX,tempY), new cv.Scalar(0, 0, 0), -1,cv.LINE_AA,0)
-                break
+                cv.rectangle(image, new cv.Point(col, 2*(upperEnd-noteHead_h*0.5 + k)-tempY +noteHead_h*0.8),new cv.Point(tempX,tempY), new cv.Scalar(0, 0, 0), -1,cv.LINE_AA,0);
+                cv.rectangle(image, new cv.Point(col, 2*(upperEnd-noteHead_h*0.5 + k)-tempY +noteHead_h*0.8),new cv.Point(tempX,tempY), new cv.Scalar(190, 0, 0), 1,cv.LINE_AA,0);
+                break;
               } else {//우측의 줄기까지 아직 도달하지 못한 상황 => 연결된 꼬리가 아닌 단일 꼬리, 음표이거나 or 아직 계산중이거나
                 if(image.ucharPtr(tempY-1, tempX+1)[0]==255){
-                  tempX++
-                  tempY--
+                  tempX++;
+                  tempY--;
                 } else if (image.ucharPtr(tempY+1, tempX+1)[0]==255){
                   tempX++
                   tempY++
@@ -313,6 +315,8 @@ function object_detection(image,staves){
           }
         }
       }
+      cv.line(image, new cv.Point(col,upperEnd), new cv.Point(col,upperEnd+height), new cv.Scalar(125,0,0),2);//줄기위치 표시
+
     }
   }
   return [image,objects]
