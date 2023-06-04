@@ -214,91 +214,139 @@ function remove_noise(imgElement){
     mask.delete();
     return masked_img
 }
-// function recognize_note_tail(image,index,stem,direction){
-//   let [x,y,w,h]=stem
-//   if (direction=="true"){
-
-//   }
-// }
 
 function object_detection(image,staves){
-    let closing_image= closing(image)
-    let label = new cv.Mat() // Label image (CV_32SC1 or CV_16UC1)
-    let stats = new cv.Mat() // value and area value forming the bounding box
-    let centroids = new cv.Mat() // centroid (x, y) (CV_64FC1)
-    let nLabel = cv.connectedComponentsWithStats(
-      closing_image,
-      label,
-      stats,
-      centroids,
-      4,
-      cv.CV_32S
-    )
-    let lines = parseInt((staves.length)/5)
-    let objects= []
-    for (let i =0;i<nLabel;i++){
-      const [x1, y1, w, h,area] = [
-        stats.intAt(i, cv.CC_STAT_LEFT),
-        stats.intAt(i, cv.CC_STAT_TOP),
-        stats.intAt(i, cv.CC_STAT_WIDTH),
-        stats.intAt(i, cv.CC_STAT_HEIGHT),
-        stats.intAt(i, cv.CC_STAT_AREA)
-      ]
-      // if (w>=weighted(5)&&w<image.cols*0.5 && h>=weighted(5)&&h<image.rows*0.5){
-      if (w<image.cols*0.5 && h>=weighted(5)&&h<image.rows*0.5){
-        let center= get_center(y1,h);
-        //어디 line에 속해있는지 가려내는 for문
-        for (let line=0; line<lines; line++){
-          let area_top = staves[line*5]-weighted(20);
-          let area_bot = staves[(line+1)*5-1]+weighted(20);
-          //오선 두칸 정도 더해진 범위 안에 center(y좌표)가 포함된다면, 해당 보표에 속해있는 객체이다.
-          if (area_top<=center && center<=area_bot){//여기가 문제!
-            let stats = [x1,y1,w,h,area];
-            let stems= stem_detection(image,stats,30);
-            let direction='none';
-            if (stems.length>0){
-              if (stems[0][0]-stats[0]>=weighted(5)){
-                direction='true';
-              } else {
-                direction='false';
-              }
-            }
-            objects.push([line,[x1,y1,w,h,area],stems,direction]);
-            cv.rectangle(image,new cv.Point(x1,y1),new cv.Point(x1+w,y1+h),new cv.Scalar(255, 255, 255),1,cv.LINE_AA,0);//전체영역***
-          }
+  let closing_image= closing(image)
+  let label = new cv.Mat() // Label image (CV_32SC1 or CV_16UC1)
+  let stats = new cv.Mat() // value and area value forming the bounding box
+  let centroids = new cv.Mat() // centroid (x, y) (CV_64FC1)
+  let nLabel = cv.connectedComponentsWithStats(
+    closing_image,
+    label,
+    stats,
+    centroids,
+    4,
+    cv.CV_32S
+  )
+  let lines = parseInt((staves.length)/5)//6 or 7
+  const objects = [...new Array(lines)].map(() => []);
+  for (let i =0;i<nLabel;i++){
+    const [x, y, w, h] = [
+      stats.intAt(i, cv.CC_STAT_LEFT),
+      stats.intAt(i, cv.CC_STAT_TOP),
+      stats.intAt(i, cv.CC_STAT_WIDTH),
+      stats.intAt(i, cv.CC_STAT_HEIGHT)
+    ]
+    //객체의 기초조건(크기)을 충족하였는가
+    if (w < image.cols*0.5 && weighted(5) <= h && h < image.rows*0.5){ //if (w>=weighted(5)&&w<image.cols*0.5 && h>=weighted(5)&&h<image.rows*0.5){
+      let objCenter= get_center(y,h);
+      let dist=9999;
+      let finalLine;
+      //어디 line에 속해있는지 가려내는 for문
+      for (let line=0; line<lines; line++){
+        let area_center =(staves[line*5]+staves[(line+1)*5-1])/2;
+        //오선 두칸 정도 더해진 범위 안에 center(y좌표)가 포함된다면, 해당 보표에 속해있는 객체이다.
+        if(dist>Math.abs(objCenter-area_center)){
+          dist=Math.abs(objCenter-area_center);
+          finalLine=line;
         }
       }
-      'asdf'
+      cv.rectangle(image,new cv.Point(x,y),new cv.Point(x+w,y+h), new cv.Scalar(255, 255, 255), 1, cv.LINE_AA, 0);//전체영역***
+      put_text(image,finalLine,new cv.Point(x+w,y+h));
+      objects[finalLine].push([x,y,w,h]);
     }
-    objects.sort();
-    return [image,objects]
-}
+  }
+  //같은 라인 중에서 좌 -> 우 순으로 정렬
 
-function stem_detection(image,stats,length){
-  const [x, y, w, h, area] = stats
-  const stems=[]
-  //column = x, row = y
-  //반복횟수 = w만큼 실행됨 -> 13 , 8 ,18 , 8 ...
-
-  for (let col=x; col<x+w; col++){
-    //각 음표의 최좌단 최우단 x좌표를 모두 훑어보며 get_line을 통해 음표의 특징이 되는 기둥의 유무를 파악한다
-    const [end,pixels]=get_line(image,VERTICAL,col,y,y+h,length)
-    //image, axis, axisValue, start, end, length
-    //문제는 get_line!에서 pixels!=0 횟수가 적게 검출
-
-    //col==axis_value,해당 x좌표를 계속 바꾸며 전체 음표의 최하단-최상단 사이에 length
-    //(선의 최소 길이 조건)이상의 선이 있는지 확인
-    if (pixels>0){
-      if (stems.length==0 || Math.abs(stems.slice(-1)[0][0] + stems.slice(-1)[0][2]-col)>=1){
-        stems.push([col,end-pixels+1,1,pixels])//(x, y, w, h)
-      } else {
-        //이전 기둥과 바로 붙어있는 (이전 기둥의 x좌표+너비와 현재 기둥 x좌표 간의 차이가 0일때)
-        //경우, 이전 기둥의 너비를 단순히 넓히는 것으로 마무리
-        stems.slice(-1)[0][2]++
+  let noteHead_h=staves[2]-staves[0]; //음표머리의 높이
+  for (let i =0; i<lines;i++){
+    objects[i].sort((a, b) => {
+        return a[0] - b[0]
+    })
+    let j =0;
+    //console.log("before=",objects[i].length);
+    while(true){
+      let [x,y,w,h] = objects[i][j]
+      if ((noteHead_h<w)&&(noteHead_h*1.5<h)){
+        objects[i]=objects[i].filter((_,id)=> (id>j));
+        //console.log("j=",j,"after=",objects[i].length);
+        cv.rectangle(image,new cv.Point(x,y),new cv.Point(x+w,y+h), new cv.Scalar(125, 0, 0), 4, cv.LINE_AA, 0);//조표***
+        break
+      } else{
+        j++;
       }
     }
   }
-  return stems
+  var stems=[];
+  for (let i=0; i<objects.length;i++){
+    for (let j=0; j<objects[i].length;j++){
+      stems.push(stem_detection(image,objects[i][j],noteHead_h*1.6,noteHead_h))
+    }
+  }
+
+  for (let i=0; i<stems.length;i++){//244개의 요소, 각 요소는 0에서 4개까지의 배열이 존재
+    for (let j=0; j<stems[i].length; j++){
+      let [col,upperEnd,width,height]=stems[i][j];
+      //꼬리가 시작되는 부분이 전체 객체 기준 조금 튀어나와있을 수 있음. 따라서 줄기 상하단 기준으로 여유공간이 추가된 높이만큼 탐색
+      let spareSpace = parseInt(noteHead_h*0.5);
+      for (let k = 0; k<height + 2*spareSpace;k++){
+        if (image.ucharPtr(upperEnd - spareSpace + k,col+2)[0]==255){
+          if (j!=stems[i].length-1){//객체 내에서 가장 우측에 위치한 줄기가 아니면, 꼬리 탐색 시작
+            
+            let tempX = col+2;
+            let tempY = upperEnd-noteHead_h*0.5 + k;
+            while(true){
+              if (tempX >=stems[i][j+1][0]){//우측에 있는 줄기의 x좌표보다 커지면, 꼬리로 분류!
+                cv.rectangle(image, new cv.Point(col, 2*(upperEnd-noteHead_h*0.5 + k)-tempY +noteHead_h*0.8),new cv.Point(tempX,tempY), new cv.Scalar(0, 0, 0), -1,cv.LINE_AA,0);
+                cv.rectangle(image, new cv.Point(col, 2*(upperEnd-noteHead_h*0.5 + k)-tempY +noteHead_h*0.8),new cv.Point(tempX,tempY), new cv.Scalar(190, 0, 0), 1,cv.LINE_AA,0);
+                break;
+              } else {//우측의 줄기까지 아직 도달하지 못한 상황 => 연결된 꼬리가 아닌 단일 꼬리, 음표이거나 or 아직 계산중이거나
+                if(image.ucharPtr(tempY-1, tempX+1)[0]==255){
+                  tempX++;
+                  tempY--;
+                } else if (image.ucharPtr(tempY+1, tempX+1)[0]==255){
+                  tempX++
+                  tempY++
+                } else {//우측에 더이상 인접한 하얀픽셀이 없음 -> while문 탈출
+                  break
+                }
+              }
+            }
+          }
+        }
+      }
+      cv.line(image, new cv.Point(col,upperEnd), new cv.Point(col,upperEnd+height), new cv.Scalar(125,0,0),2);//줄기위치 표시
+
+    }
+  }
+  return [image,objects]
+}
+  //column = x, row = y
+function stem_detection(image,stats,length,noteHead_h){
+  const [x, y, w, h] = stats
+  const stems=[]
+  //너비만큼 x좌표를 traverse
+  for (let col=x; col<x+w; col++){
+    //각 음표의 최좌단 최우단 x좌표를 모두 훑어보며 get_line을 통해 음표의 특징이 되는 기둥의 유무를 파악한다
+    const [end,pixels]=get_line(image,VERTICAL,col,y,y+h,length) //image, axis, axisValue, start, end, length
+    //col==axis_value,해당 x좌표를 계속 바꾸며 전체 음표의 최하단-최상단 사이에 length
+    //(선의 최소 길이 조건)이상의 선이 있는지 확인
+    if (pixels>0){ //이전 기둥과 바로 붙어있지 않고 (이전 기둥의 x좌표+너비와 현재 기둥 x좌표 간의 차이가 0일때), 처음으로 나온 줄기일때.
+      if (stems.length==0 || Math.abs(stems.slice(-1)[0][0] + stems.slice(-1)[0][2]-col)>=1){
+        //음표가 밀접되어있는 구간을 줄기로 잘못 인식하는 문제 해결
+        if (stems.length!=0 && col-stems[stems.length-1][0]<noteHead_h*0.7){ //stems리스트 바로 전 요소와의 x좌표 거리가 머리 너비보다 좁으면
+          if (stems[stems.length-1][3] < pixels){ //우측(더 최근에 검출된) 줄기가 더 길면
+            stems[stems.length-1] = [col,end-pixels,1,pixels]; //기존에 기록한 줄기 기록 대체
+          }
+        } else{
+          stems.push([col,end-pixels,1,pixels])//(x좌표, 상단끝,너비, 길이)
+        }
+      } else {
+        stems.slice(-1)[0][2]++ //이전 기둥의 너비를 단순히 넓힘
+      }
+    }
+  }
+  return stems  //stems 배열에 각 객체 내에서 검출된 stem들을 모두 저장한 후 반환. 줄기가 없는 객체의 경우 [] 반환
 }
 
 function recognition(image, staves, objects) {
@@ -393,7 +441,7 @@ function recognize_note(image, staff, stats, stems, direction,objects) {
     put_text(image,direction,new cv.Point(x+(w/2)-weighted(10),y+h+weighted(50)))
     // cv.rectangle(image,new cv.Point(x,y),new cv.Point(x+w,y+h),new cv.Scalar(255, 255, 255),1,cv.LINE_AA,0)//neo1-headCenter
   }
-  cv.rectangle(image,new cv.Point(x,y),new cv.Point(x+w,y+h),new cv.Scalar(255, 255, 255),1,cv.LINE_AA,0)//neo-영역전체        
+  cv.rectangle(image,new cv.Point(x,y),new cv.Point(x+w,y+h),new cv.Scalar(125, 0, 0),1,cv.LINE_AA,0)//neo-영역전체        
 
   return pitches
 }
