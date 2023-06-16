@@ -155,19 +155,6 @@ function get_line(image, axis, axisValue, start, end, length) {
     return axis ? [y, pixels] : [x, pixels];
 }
 
-function count_rect_pixels(image, rect) {
-    let [x, y, w, h] = rect;
-    let pixels = 0;
-    for (let row = y; row < y + h; row++) {
-        for (let col = x; col < x + w; col++) {
-          if (image.ucharPtr(row,col)[0] == 255) {
-              pixels += 1;
-          }
-        }
-    }
-    return pixels;
-} 
-
 function remove_noise(imgElement){
     let mat = cv.imread(imgElement);
     let mat_gray = new cv.Mat();
@@ -280,7 +267,7 @@ function object_detection(image,staves){
     }
   }
 
-  //각 객체들 내에 위치한 줄기들을 검출하는 구간
+  //objects 구분없이 line별로 stems를 나열하는 새로운 자료구조 생성
   var stems=[];
   for (let i=0; i<objects.length;i++){
     var stemsPerLine = []
@@ -293,8 +280,8 @@ function object_detection(image,staves){
     stems.push(stemsPerLine)
   }
 
-  for (let i=0; i<stems.length;i++){//각 객체마다 줄기들의 배열을 갖고 있기 때문에, 2중 for문으로 줄기 접근이 필요
-    for (let j=0; j<stems[i].length; j++){
+  for (let i=0; i<stems.length;i++){//각 line마다 줄기들의 배열을 갖고 있기 때문에, line기준으로 1차 접근
+    for (let j=0; j<stems[i].length; j++){// 같은 line에 소속되어있는 모든 줄기들 좌->우로 traverse 
       let [col,upperEnd,width,height]=stems[i][j];
       //꼬리가 시작되는 부분이 전체 객체 기준 조금 튀어나와있을 수 있음. 따라서 줄기 상하단 기준으로 여유공간이 추가된 높이만큼 탐색
       let spareSpace = parseInt(noteHead_h*0.5);
@@ -332,7 +319,7 @@ function object_detection(image,staves){
   //objects 내에 stems를 넣을 수도 있었으나, objects 내에 stems를 넣게 되면, 3중 for문으로 접근이 필요.
   //결국 최종적으로 objects에 들어가야할 정보는 계이름 음정인 만큼, 음정을 추출하기위한 재료인 줄기정보는 일단 stems 배열에 저장
   //stems 배열의 경우, 줄기기준으로 나뉘어져 있는 만큼, line과 objects의 구분이 필요없어  접근이 가능할 것이고, 
-  return [image,stems]
+  return [image,stems,noteHead_h]
 }
   //column = x, row = y
 function stem_detection(image,stats,length,noteHead_h){
@@ -362,34 +349,56 @@ function stem_detection(image,stats,length,noteHead_h){
   return stems  //stems 배열에 각 객체 내에서 검출된 stem들을 모두 저장한 후 반환. 줄기가 없는 객체의 경우 [] 반환
 }
 
-// function recognition0616(image,objects){
-//   for (let i = 0; i < objects.length; i++){
-//     for (let j = 0; j < objects[i].length; j++){
-//       for (let k = 0; k<objects[i][j][4].length; k++){
-//         let [x,y,w,h]=objects[i][j][4][k];
-//         // for (let l = 0; l<y+h+;)
-//       }
-//     }
-//   }
-//   if (image.ucharPtr(y_stem+i+weighted(12),x_stem-noteHalf)[0]==255){
-//     //처음으로 유의미한 덩어리가 포착된 높이(위->아래)기록
-//       area_left = x_stem - noteHalf*2;
-//       area_right = x_stem;
-//     if (fullCnt_l==0){
-//       topPixelsHeight_l=y_stem+i+weighted(12)-1
-//     }
-//     if(fullCnt_l>=noteHalf){
-//       area_top=topPixelsHeight_l
-//       area_bot=area_top+noteHalf*2
-//       temp_list.push((area_top+area_bot)/2)
-//       cv.rectangle(image,new cv.Point(area_left,area_top),new cv.Point(area_right,area_bot),new cv.Scalar(125,0,0),1,cv.LINE_AA,0)//neo-가상선
-//       fullCnt_l=0
-//     }
-//     fullCnt_l++
-//   } else {
-//     fullCnt_l=0
-//   }
-// }
+function recognition0616(image,stems,headH_2){//head_h = 계이름머리 높이 * 2
+  let headH= parseInt(headH_2*0.5);
+  let headW= parseInt(headH*1.2);
+  var isHead=0;
+  let pxRange =2;
+  for (let i = 0; i < stems.length; i++){
+    for (let j = 0; j < stems[i].length; j++){
+        let [col, upperEnd, width, height]=stems[i][j];
+        console.log(stems[i][j]);
+        for(let k =0; k<height+headH*2; k++){
+          //줄기의 상하단 양쪽에서 headH 여백을 두고 추가로 traverse하게끔 for문, if문의 범위 설정
+          var presentY = upperEnd-headH+k
+          if (
+            image.ucharPtr(presentY,col- headW*0.5)[0]==255 &&
+            count_rect_pixels(image,[col-headW,presentY,headW,headH]) >=55 &&
+            (image.ucharPtr(presentY+headH*0.5-pxRange,col- headW)[0]==255 ||  // *
+             image.ucharPtr(presentY+headH*0.5,col- headW+pxRange)[0]==255 ||  //   *
+             image.ucharPtr(presentY+headH*0.5+pxRange,col- headW)[0]==255) && // *
+
+            (image.ucharPtr(presentY+headH*0.5-pxRange,col-2)[0]==255 ||  //            *
+             image.ucharPtr(presentY+headH*0.5,col-2-pxRange)[0]==255   ||//          *
+             image.ucharPtr(presentY+headH*0.5+pxRange,col-2)[0]==255) && //            *
+             isHead ==0){
+              cv.rectangle(image,new cv.Point(col-headW,presentY),new cv.Point(col,presentY+headH),new cv.Scalar(125,0,0),1,cv.LINE_AA,0)//머리경계
+              isHead=headH-1;
+          } 
+
+          image.ucharPtr(presentY,col- headW*0.5)[0]=125;
+          if (isHead>0){
+            isHead--;
+          }
+      }
+    }
+  }
+  return [image]
+}
+
+function count_rect_pixels(image, rect) {
+  let [x, y, w, h] = rect;
+  let pixels = 0;
+  for (let row = y; row < y + h; row++) {
+      for (let col = x; col < x + w; col++) {
+        if (image.ucharPtr(row,col)[0] == 255) {
+            pixels += 1;
+        }
+      }
+  }
+  return pixels;
+} 
+
 function recognition(image, staves, objects) {
   let object_2=[];
   let object_3=[];
@@ -594,7 +603,6 @@ function recognize_note_head(image, stem, direction,objects) {
   }
   cv.rectangle(image,new cv.Point(x_stem,y_stem-noteHalf),new cv.Point(x_stem,y_stem+h_stem+noteHalf),new cv.Scalar(255, 255, 255),1,cv.LINE_AA,0)//neo-줄기위치
   //줄기의 최하단 좌표를 기준, 계이름들을 분리하는 가상선을 그려준 후에, recognize_notehead를 변형하여 다수의 음표 pitch를 fetch
-  let head_exist = (cnt>=4 && pixel_cnt>=55)
-  let head_fill = (cnt>= 9 && cnt_max>=10 && pixel_cnt>=90)
+
   return [head_exist, head_fill, head_centers]
 }
