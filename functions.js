@@ -350,8 +350,8 @@ function stem_detection(image,stats,length,noteHead_h){
 }
 
 function recognition0616(image,stems,headH_2){//head_h = 계이름머리 높이 * 2
-  let headH= parseInt(headH_2*0.5);
-  let headW= parseInt(headH*1.2);
+  let headH= parseInt(headH_2*0.5)-1 ;
+  let headW= parseInt(headH*1.2)+2;
   var isHead=0;
   let pxRange =2;
   for (let i = 0; i < stems.length; i++){
@@ -370,9 +370,13 @@ function recognition0616(image,stems,headH_2){//head_h = 계이름머리 높이 
             (image.ucharPtr(presentY+headH*0.5-pxRange,col-2)[0]==255 ||  //            *
              image.ucharPtr(presentY+headH*0.5,col-2-pxRange)[0]==255   ||//          *
              image.ucharPtr(presentY+headH*0.5+pxRange,col-2)[0]==255) && //            *
+
+            (image.ucharPtr(presentY+headH,col-headW*0.5-pxRange)[0]==255 ||   //            
+             image.ucharPtr(presentY+headH,col-headW*0.5+pxRange)[0]==255  ||  //          *
+             image.ucharPtr(presentY+headH-pxRange,col-headW*0.5)[0]==255) &&  //       *     *
              isHead ==0){
               cv.rectangle(image,new cv.Point(col-headW,presentY),new cv.Point(col,presentY+headH),new cv.Scalar(125,0,0),1,cv.LINE_AA,0)//좌측머리경계
-              isHead=headH-1;
+              isHead=headH;
           } 
           image.ucharPtr(presentY,col- headW*0.5)[0]=125;
           if (isHead>0){
@@ -393,9 +397,12 @@ function recognition0616(image,stems,headH_2){//head_h = 계이름머리 높이 
             (image.ucharPtr(presentY+headH*0.5-pxRange,col+headW-2)[0]==255 ||  //            *
              image.ucharPtr(presentY+headH*0.5,col+headW-2-pxRange)[0]==255   ||//          *
              image.ucharPtr(presentY+headH*0.5+pxRange,col+headW-2)[0]==255) && //            *
+
+            (image.ucharPtr(presentY+headH,col+headW*0.5-pxRange)[0]==255 ||   //            
+             image.ucharPtr(presentY+headH,col+headW*0.5+pxRange)[0]==255   || //          *
+             image.ucharPtr(presentY+headH-pxRange,col+headW*0.5)[0]==255) &&  //       *     *
              isHead ==0){
               cv.rectangle(image,new cv.Point(col,presentY),new cv.Point(col+headW,presentY+headH),new cv.Scalar(125,0,0),1,cv.LINE_AA,0)//좌측머리경계
-              
               isHead=headH-1;
           } 
 
