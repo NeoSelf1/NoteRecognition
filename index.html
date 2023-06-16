@@ -38,10 +38,10 @@
               let image_2=remove_line(image_1)
               let image_3= normalization(image_2.image,image_2.myStaves,10)
               let [image_4,objects_4]=object_detection(image_3.resizedImg,image_3.myStaves)
-              let [image_5,objects_5]=recognition(image_4,image_3.myStaves,objects_4)  
+              // let [image_5,objects_5]=recognition(image_4,image_3.myStaves,objects_4)  
               // data.push([image_3.resizedImg.cols,image_3.resizedImg.rows],image_2.myStaves,objects_5)
-              // cv.imshow(`__${i}`,image_1)
-              cv.imshow(`_${i}`,image_5)
+              cv.imshow(`_${i}`,image_4)
+              console.log(objects_4)
             }
           } catch(e){
             console.log(e.toString())

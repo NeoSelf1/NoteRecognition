@@ -287,6 +287,7 @@ function object_detection(image,staves){
   for (let i=0; i<objects.length;i++){
     for (let j=0; j<objects[i].length;j++){
       stems.push(stem_detection(image,objects[i][j],noteHead_h*1.6,noteHead_h))
+      objects[i][j].push(stem_detection(image,objects[i][j],noteHead_h*1.6,noteHead_h))
     }
   }
 
@@ -322,7 +323,6 @@ function object_detection(image,staves){
         //각 줄기에 대한 머리 음정을 파악하는 구문
         //한 줄기 내에 검출된 음정 정보들을 어레이로 누적
       }
-      //objects[i]에 추가
       cv.line(image, new cv.Point(col,upperEnd), new cv.Point(col,upperEnd+height), new cv.Scalar(125,0,0),2);//줄기위치 표시
 
     }
@@ -400,7 +400,7 @@ function recognition(image, staves, objects) {
   }
   for (let i=0;i<object_3.length;i++){
     for(let j=0;j<object_3[i].length;j++){
-      put_text(image,object_3[i][j][1][0],new cv.Point(object_3[i][j][1][1],staves[object_3[i][j][0]*5+4]+weighted(60)));
+      put_text(image,object_3[i][j][1][0],new cv.Point(object_3[i][j][1][1],staves[object_3[i][j][0]*5+4]+weighted(60))); //라인
     }
   }
   return [image, object_3];
