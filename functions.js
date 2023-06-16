@@ -357,9 +357,8 @@ function recognition0616(image,stems,headH_2){//head_h = 계이름머리 높이 
   for (let i = 0; i < stems.length; i++){
     for (let j = 0; j < stems[i].length; j++){
         let [col, upperEnd, width, height]=stems[i][j];
-        console.log(stems[i][j]);
-        for(let k =0; k<height+headH*2; k++){
-          //줄기의 상하단 양쪽에서 headH 여백을 두고 추가로 traverse하게끔 for문, if문의 범위 설정
+        //좌측으로 인접한 계이름 머리 추출
+        for(let k =0; k<height+headH*2; k++){//줄기의 상하단 양쪽에서 headH 여백을 두고 추가로 traverse하게끔 for문, if문의 범위 설정
           var presentY = upperEnd-headH+k
           if (
             image.ucharPtr(presentY,col- headW*0.5)[0]==255 &&
@@ -372,7 +371,31 @@ function recognition0616(image,stems,headH_2){//head_h = 계이름머리 높이 
              image.ucharPtr(presentY+headH*0.5,col-2-pxRange)[0]==255   ||//          *
              image.ucharPtr(presentY+headH*0.5+pxRange,col-2)[0]==255) && //            *
              isHead ==0){
-              cv.rectangle(image,new cv.Point(col-headW,presentY),new cv.Point(col,presentY+headH),new cv.Scalar(125,0,0),1,cv.LINE_AA,0)//머리경계
+              cv.rectangle(image,new cv.Point(col-headW,presentY),new cv.Point(col,presentY+headH),new cv.Scalar(125,0,0),1,cv.LINE_AA,0)//좌측머리경계
+              isHead=headH-1;
+          } 
+          image.ucharPtr(presentY,col- headW*0.5)[0]=125;
+          if (isHead>0){
+            isHead--;
+          }
+      }
+      isHead=0;
+      for(let k =0; k<height+headH*2; k++){
+        //우측으로 인접한 계이름 머리 추출
+        var presentY = upperEnd-headH+k
+          if (
+            image.ucharPtr(presentY,col+ headW*0.5)[0]==255 &&
+            count_rect_pixels(image,[col,presentY,headW,headH]) >=55 &&
+            (image.ucharPtr(presentY+headH*0.5-pxRange,col)[0]==255 ||       // *
+             image.ucharPtr(presentY+headH*0.5,col + pxRange)[0]==255 ||     //   *
+             image.ucharPtr(presentY+headH*0.5+pxRange,col)[0]==255) &&      // *
+
+            (image.ucharPtr(presentY+headH*0.5-pxRange,col+headW-2)[0]==255 ||  //            *
+             image.ucharPtr(presentY+headH*0.5,col+headW-2-pxRange)[0]==255   ||//          *
+             image.ucharPtr(presentY+headH*0.5+pxRange,col+headW-2)[0]==255) && //            *
+             isHead ==0){
+              cv.rectangle(image,new cv.Point(col,presentY),new cv.Point(col+headW,presentY+headH),new cv.Scalar(125,0,0),1,cv.LINE_AA,0)//좌측머리경계
+              
               isHead=headH-1;
           } 
 
