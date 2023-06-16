@@ -33,15 +33,15 @@
             for (let i=0; i< 6; i++){
               imgElement = document.getElementById(`${i}`);
               //let data=[]
-              let src = new cv.imread(imgElement)
-              let image_1=remove_noise(imgElement)
-              let image_2=remove_line(image_1)
-              let image_3= normalization(image_2.image,image_2.myStaves,10)
-              let [image_4,objects_4]=object_detection(image_3.resizedImg,image_3.myStaves)
+              let image_1=remove_noise(imgElement);
+              let image_2=remove_line(image_1);
+              let image_3= normalization(image_2.image,image_2.myStaves,10);
+              let [image_4,stems]=object_detection(image_3.resizedImg,image_3.myStaves);//줄기검출까지만!
+              // let [image_5,objects_5]=recognition0616(image_4,objects_4);//머리 인식 + 음정 계산
               // let [image_5,objects_5]=recognition(image_4,image_3.myStaves,objects_4)  
               // data.push([image_3.resizedImg.cols,image_3.resizedImg.rows],image_2.myStaves,objects_5)
               cv.imshow(`_${i}`,image_4)
-              console.log(objects_4)
+              console.log(stems)
             }
           } catch(e){
             console.log(e.toString())

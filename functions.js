@@ -270,9 +270,7 @@ function object_detection(image,staves){
     while(true){
       let [x,y,w,h] = objects[i][j]
       if ((noteHead_h<w)&&(noteHead_h*1.5<h)){
-        //
         //자리표 분류 명령어가 들어가야하는 장소
-        //
         objects[i]=objects[i].filter((_,id)=> (id>j));//조표로 인식된 개체보다 좌측에 있는 객체들은 추후 Recognition과정에서 제외
         //cv.rectangle(image,new cv.Point(x,y),new cv.Point(x+w,y+h), new cv.Scalar(125, 0, 0), 4, cv.LINE_AA, 0);//조표위치 표시
         break
@@ -285,10 +283,14 @@ function object_detection(image,staves){
   //각 객체들 내에 위치한 줄기들을 검출하는 구간
   var stems=[];
   for (let i=0; i<objects.length;i++){
+    var stemsPerLine = []
     for (let j=0; j<objects[i].length;j++){
-      stems.push(stem_detection(image,objects[i][j],noteHead_h*1.6,noteHead_h))
-      objects[i][j].push(stem_detection(image,objects[i][j],noteHead_h*1.6,noteHead_h))
+      var stems_temp = stem_detection(image,objects[i][j],noteHead_h*1.6,noteHead_h)
+      for (let k = 0; k < stems_temp.length; k++){
+        stemsPerLine.push(stems_temp[k]);
+      }
     }
+    stems.push(stemsPerLine)
   }
 
   for (let i=0; i<stems.length;i++){//각 객체마다 줄기들의 배열을 갖고 있기 때문에, 2중 for문으로 줄기 접근이 필요
@@ -323,11 +325,14 @@ function object_detection(image,staves){
         //각 줄기에 대한 머리 음정을 파악하는 구문
         //한 줄기 내에 검출된 음정 정보들을 어레이로 누적
       }
+      //objects[i]에 추가
       cv.line(image, new cv.Point(col,upperEnd), new cv.Point(col,upperEnd+height), new cv.Scalar(125,0,0),2);//줄기위치 표시
-
     }
   }
-  return [image,objects]
+  //objects 내에 stems를 넣을 수도 있었으나, objects 내에 stems를 넣게 되면, 3중 for문으로 접근이 필요.
+  //결국 최종적으로 objects에 들어가야할 정보는 계이름 음정인 만큼, 음정을 추출하기위한 재료인 줄기정보는 일단 stems 배열에 저장
+  //stems 배열의 경우, 줄기기준으로 나뉘어져 있는 만큼, line과 objects의 구분이 필요없어  접근이 가능할 것이고, 
+  return [image,stems]
 }
   //column = x, row = y
 function stem_detection(image,stats,length,noteHead_h){
@@ -357,6 +362,34 @@ function stem_detection(image,stats,length,noteHead_h){
   return stems  //stems 배열에 각 객체 내에서 검출된 stem들을 모두 저장한 후 반환. 줄기가 없는 객체의 경우 [] 반환
 }
 
+// function recognition0616(image,objects){
+//   for (let i = 0; i < objects.length; i++){
+//     for (let j = 0; j < objects[i].length; j++){
+//       for (let k = 0; k<objects[i][j][4].length; k++){
+//         let [x,y,w,h]=objects[i][j][4][k];
+//         // for (let l = 0; l<y+h+;)
+//       }
+//     }
+//   }
+//   if (image.ucharPtr(y_stem+i+weighted(12),x_stem-noteHalf)[0]==255){
+//     //처음으로 유의미한 덩어리가 포착된 높이(위->아래)기록
+//       area_left = x_stem - noteHalf*2;
+//       area_right = x_stem;
+//     if (fullCnt_l==0){
+//       topPixelsHeight_l=y_stem+i+weighted(12)-1
+//     }
+//     if(fullCnt_l>=noteHalf){
+//       area_top=topPixelsHeight_l
+//       area_bot=area_top+noteHalf*2
+//       temp_list.push((area_top+area_bot)/2)
+//       cv.rectangle(image,new cv.Point(area_left,area_top),new cv.Point(area_right,area_bot),new cv.Scalar(125,0,0),1,cv.LINE_AA,0)//neo-가상선
+//       fullCnt_l=0
+//     }
+//     fullCnt_l++
+//   } else {
+//     fullCnt_l=0
+//   }
+// }
 function recognition(image, staves, objects) {
   let object_2=[];
   let object_3=[];
