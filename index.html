@@ -32,14 +32,13 @@
             var imgElement;
             for (let i=0; i< 6; i++){
               imgElement = document.getElementById(`${i}`);
-              //let data=[]
               let image_1=remove_noise(imgElement);
-              let image_2=remove_line(image_1);
-              let image_3= normalization(image_2.image,image_2.myStaves,10);
-              let [image_4,stems,head_h]=object_detection(image_3.resizedImg,image_3.myStaves);//줄기검출까지만!
-              let [image_5]=recognition0616(image_4,stems,head_h,image_3.myStaves);//머리 인식 + 음정 계산
-              // let [image_5,objects_5]=recognition(image_4,image_3.myStaves,objects_4)  
+              let [image_2,staves]=remove_line(image_1);
+              let [resizedImg,resizedStaves]= normalization(image_2,staves,10);
+              let [image_4,stems,head_h,lineArea]=object_detection(resizedImg,resizedStaves);//줄기검출까지만!
+              let [image_5,pitches]=recognition(image_4,stems,head_h,resizedStaves);//머리 인식 + 음정 계산
               cv.imshow(`_${i}`,image_5)
+              console.log("lineArea=",lineArea)
             }
           } catch(e){
             console.log(e.toString())

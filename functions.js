@@ -74,7 +74,7 @@ function remove_line(image){
         // cv.rectangle(image,new cv.Point(0,(myStaves[i]+myStaves[i+1])/2-1.5),new cv.Point(image.cols,(myStaves[i]+myStaves[i+1])/2+1.5),new cv.Scalar(0, 0, 0),-1,cv.LINE_AA,0)//가리는거
       // }
     //}
-    return {image,myStaves}
+    return [image,myStaves]
 }
 
 function normalization(image,staves,standard){
@@ -106,7 +106,7 @@ function normalization(image,staves,standard){
     let myStaves=staves.map((item)=>item*weight)
     resized.delete()
     resized_gray.delete()
-    return {resizedImg,myStaves}
+    return [resizedImg,myStaves]
 }
 
 function closing(image){
@@ -239,6 +239,7 @@ function object_detection(image,staves){
   //같은 라인 중에서 좌 -> 우 순으로 정렬
 
   let noteHead_h=staves[2]-staves[0]; //음표머리의 높이
+  let lineArea=[];
   for (let i =0; i<lines;i++){
     // let yArr=objects[i].map(function(x){
     //   return x[1];
@@ -246,10 +247,9 @@ function object_detection(image,staves){
     // let area_top = Math.min(...yArr); 
     let area_top = Math.min(...objects[i].map(item=>item[1]));//위 코드와 동일한 결과 반환
     let area_bot = Math.max(...objects[i].map(item=>item[1]+item[3]))
-    console.log(area_top,area_bot);
     cv.line(image, new cv.Point(0,area_top), new cv.Point(image.cols,area_top), new cv.Scalar(125,0,0),2);//줄기위치 표시
     cv.line(image, new cv.Point(0,area_bot), new cv.Point(image.cols,area_bot), new cv.Scalar(125,0,0),2);//줄기위치 표시
-
+    lineArea.push([area_top,area_bot]);
 
     //**** line별 상하단 끝을 계산하는 구문 위치
     // 별도의 배열 생성,
@@ -320,7 +320,7 @@ function object_detection(image,staves){
   //objects 내에 stems를 넣을 수도 있었으나, objects 내에 stems를 넣게 되면, 3중 for문으로 접근이 필요.
   //결국 최종적으로 objects에 들어가야할 정보는 계이름 음정인 만큼, 음정을 추출하기위한 재료인 줄기정보는 일단 stems 배열에 저장
   //stems 배열의 경우, 줄기기준으로 나뉘어져 있는 만큼, line과 objects의 구분이 필요없어  접근이 가능할 것이고, 
-  return [image,stems,noteHead_h]
+  return [image,stems,noteHead_h,lineArea]
 }
   //column = x, row = y
 function stem_detection(image,stats,length,noteHead_h){
@@ -350,7 +350,7 @@ function stem_detection(image,stats,length,noteHead_h){
   return stems  //stems 배열에 각 객체 내에서 검출된 stem들을 모두 저장한 후 반환. 줄기가 없는 객체의 경우 [] 반환
 }
 
-function recognition0616(image,stems,headH_2,staves){//head_h = 계이름머리 높이 * 2
+function recognition(image,stems,headH_2,staves){//head_h = 계이름머리 높이 * 2
   let headH= parseInt(headH_2*0.5)-1 ;
   let headW= parseInt(headH*1.2)+2;
   var isHead=0;
@@ -428,8 +428,7 @@ function recognition0616(image,stems,headH_2,staves){//head_h = 계이름머리 
     }
     pitches.push(pitchesPerLine)
   }
-  console.log(pitches)
-  return [image]
+  return [image,pitches]
 }
 
 function count_rect_pixels(image, rect) {
