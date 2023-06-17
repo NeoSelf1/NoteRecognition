@@ -23,6 +23,8 @@
       <canvas style="width:33%" id="_3"></canvas>
       <canvas style="width:33%" id="_4"></canvas>
       <canvas style="width:33%" id="_5"></canvas>
+      <img id="1" crossorigin=" " src='https://cdn.imweb.me/upload/S20200724abcb07db26ecf/13cf396749723.jpg' alt = 'true'/>
+      <img id="5" crossorigin=" " src='https://blog.kakaocdn.net/dn/b2kuaR/btqwdA5sEt5/LPIm1fxENPjH51dj9Y7x31/img.jpg' alt = 'Summer'/>
     </div>
 
     <script type="text/javascript">
@@ -37,7 +39,7 @@
               let image_2=remove_line(image_1);
               let image_3= normalization(image_2.image,image_2.myStaves,10);
               let [image_4,stems,head_h]=object_detection(image_3.resizedImg,image_3.myStaves);//줄기검출까지만!
-              let [image_5]=recognition0616(image_4,stems,head_h);//머리 인식 + 음정 계산
+              let [image_5]=recognition0616(image_4,stems,head_h,image_3.myStaves);//머리 인식 + 음정 계산
               // let [image_5,objects_5]=recognition(image_4,image_3.myStaves,objects_4)  
               cv.imshow(`_${i}`,image_5)
             }

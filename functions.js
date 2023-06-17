@@ -1,4 +1,3 @@
-
 let VERTICAL=true;
 let HORIZONTAL=false;
 function remove_line(image){
@@ -239,7 +238,7 @@ function object_detection(image,staves){
           finalLine=line;
         }
       }
-      cv.rectangle(image,new cv.Point(x,y),new cv.Point(x+w,y+h), new cv.Scalar(255, 255, 255), 1, cv.LINE_AA, 0);//전체영역***
+      // cv.rectangle(image,new cv.Point(x,y),new cv.Point(x+w,y+h), new cv.Scalar(255, 255, 255), 1, cv.LINE_AA, 0);//Object 전체영역***
       put_text(image,finalLine,new cv.Point(x+w,y+h));
       objects[finalLine].push([x,y,w,h]);
     }
@@ -292,8 +291,7 @@ function object_detection(image,staves){
             let tempY = upperEnd-noteHead_h*0.5 + k;
             while(true){
               if (tempX >=stems[i][j+1][0]){//우측에 있는 줄기의 x좌표보다 커지면, 꼬리로 분류!
-                cv.rectangle(image, new cv.Point(col, 2*(upperEnd-noteHead_h*0.5 + k)-tempY +noteHead_h*0.8),new cv.Point(tempX,tempY), new cv.Scalar(0, 0, 0), -1,cv.LINE_AA,0);
-                //cv.rectangle(image, new cv.Point(col, 2*(upperEnd-noteHead_h*0.5 + k)-tempY +noteHead_h*0.8),new cv.Point(tempX,tempY), new cv.Scalar(190, 0, 0), 1,cv.LINE_AA,0);
+                cv.rectangle(image, new cv.Point(col, 2*(upperEnd-noteHead_h*0.5 + k)-tempY +noteHead_h*0.8),new cv.Point(tempX,tempY), new cv.Scalar(0, 0, 0), -1,cv.LINE_AA,0);//연결꼬리 가리는 용도
                 break;
               } else {//우측의 줄기까지 아직 도달하지 못한 상황 => 연결된 꼬리가 아닌 단일 꼬리, 음표이거나 or 아직 계산중이거나
                 if(image.ucharPtr(tempY-1, tempX+1)[0]==255){
@@ -309,10 +307,7 @@ function object_detection(image,staves){
             }
           }
         }
-        //각 줄기에 대한 머리 음정을 파악하는 구문
-        //한 줄기 내에 검출된 음정 정보들을 어레이로 누적
       }
-      //objects[i]에 추가
       cv.line(image, new cv.Point(col,upperEnd), new cv.Point(col,upperEnd+height), new cv.Scalar(125,0,0),2);//줄기위치 표시
     }
   }
@@ -349,43 +344,52 @@ function stem_detection(image,stats,length,noteHead_h){
   return stems  //stems 배열에 각 객체 내에서 검출된 stem들을 모두 저장한 후 반환. 줄기가 없는 객체의 경우 [] 반환
 }
 
-function recognition0616(image,stems,headH_2){//head_h = 계이름머리 높이 * 2
+function recognition0616(image,stems,headH_2,staves){//head_h = 계이름머리 높이 * 2
   let headH= parseInt(headH_2*0.5)-1 ;
   let headW= parseInt(headH*1.2)+2;
   var isHead=0;
   let pxRange =2;
-  for (let i = 0; i < stems.length; i++){
+
+  let pitches=[];
+
+  for (let i = 0; i < stems.length; i++){//i = line을 의미
+    let pitchesPerLine=[];
     for (let j = 0; j < stems[i].length; j++){
-        let [col, upperEnd, width, height]=stems[i][j];
-        //좌측으로 인접한 계이름 머리 추출
-        for(let k =0; k<height+headH*2; k++){//줄기의 상하단 양쪽에서 headH 여백을 두고 추가로 traverse하게끔 for문, if문의 범위 설정
-          var presentY = upperEnd-headH+k
-          if (
-            image.ucharPtr(presentY,col- headW*0.5)[0]==255 &&
-            count_rect_pixels(image,[col-headW,presentY,headW,headH]) >=55 &&
-            (image.ucharPtr(presentY+headH*0.5-pxRange,col- headW)[0]==255 ||  // *
-             image.ucharPtr(presentY+headH*0.5,col- headW+pxRange)[0]==255 ||  //   *
-             image.ucharPtr(presentY+headH*0.5+pxRange,col- headW)[0]==255) && // *
+      let pitchesPerStem=[];
+      let staff = staves.slice(i * 5, (i+ 1) * 5);
+      //현재 object가 소속되어있는 line ex.1 => 5,10 => 5,6,7,8,9
+      let [col, upperEnd, width, height]=stems[i][j];
+      //좌측으로 인접한 계이름 머리 추출
+      for(let k =0; k<height+headH*2; k++){//줄기의 상하단 양쪽에서 headH 여백을 두고 추가로 traverse하게끔 for문, if문의 범위 설정
+        var presentY = upperEnd-headH+k
+        if (
+          image.ucharPtr(presentY,col- headW*0.5)[0]==255 &&
+          count_rect_pixels(image,[col-headW,presentY,headW,headH]) >=55 &&
+          (image.ucharPtr(presentY+headH*0.5-pxRange,col- headW)[0]==255 ||  // *
+            image.ucharPtr(presentY+headH*0.5,col- headW+pxRange)[0]==255 ||  //   *
+            image.ucharPtr(presentY+headH*0.5+pxRange,col- headW)[0]==255) && // *
 
-            (image.ucharPtr(presentY+headH*0.5-pxRange,col-2)[0]==255 ||  //            *
-             image.ucharPtr(presentY+headH*0.5,col-2-pxRange)[0]==255   ||//          *
-             image.ucharPtr(presentY+headH*0.5+pxRange,col-2)[0]==255) && //            *
+          (image.ucharPtr(presentY+headH*0.5-pxRange,col-2)[0]==255 ||  //            *
+            image.ucharPtr(presentY+headH*0.5,col-2-pxRange)[0]==255   ||//          *
+            image.ucharPtr(presentY+headH*0.5+pxRange,col-2)[0]==255) && //            *
 
-            (image.ucharPtr(presentY+headH,col-headW*0.5-pxRange)[0]==255 ||   //            
-             image.ucharPtr(presentY+headH,col-headW*0.5+pxRange)[0]==255  ||  //          *
-             image.ucharPtr(presentY+headH-pxRange,col-headW*0.5)[0]==255) &&  //       *     *
-             isHead ==0){
-              cv.rectangle(image,new cv.Point(col-headW,presentY),new cv.Point(col,presentY+headH),new cv.Scalar(125,0,0),1,cv.LINE_AA,0)//좌측머리경계
-              isHead=headH;
-          } 
-          image.ucharPtr(presentY,col- headW*0.5)[0]=125;
-          if (isHead>0){
-            isHead--;
-          }
+          (image.ucharPtr(presentY+headH,col-headW*0.5-pxRange)[0]==255 ||   //            
+            image.ucharPtr(presentY+headH,col-headW*0.5+pxRange)[0]==255  ||  //          *
+            image.ucharPtr(presentY+headH-pxRange,col-headW*0.5)[0]==255) &&  //       *     *
+            isHead ==0){
+            // cv.rectangle(image,new cv.Point(col-headW,presentY),new cv.Point(col,presentY+headH),new cv.Scalar(125,0,0),1,cv.LINE_AA,0)//좌측머리경계***
+            pitchesPerStem.push(recognize_pitch(image, staff, presentY+headH*0.5))
+            isHead=headH;
+        } 
+        image.ucharPtr(presentY,col- headW*0.5)[0]=125;//계이름머리의 중앙 x좌표 표시
+        if (isHead>0){
+          isHead--;
+        }
       }
-      isHead=0;
+
+      //우측으로 인접한 계이름 머리 추출
+      isHead=0;        
       for(let k =0; k<height+headH*2; k++){
-        //우측으로 인접한 계이름 머리 추출
         var presentY = upperEnd-headH+k
           if (
             image.ucharPtr(presentY,col+ headW*0.5)[0]==255 &&
@@ -402,17 +406,23 @@ function recognition0616(image,stems,headH_2){//head_h = 계이름머리 높이 
              image.ucharPtr(presentY+headH,col+headW*0.5+pxRange)[0]==255   || //          *
              image.ucharPtr(presentY+headH-pxRange,col+headW*0.5)[0]==255) &&  //       *     *
              isHead ==0){
-              cv.rectangle(image,new cv.Point(col,presentY),new cv.Point(col+headW,presentY+headH),new cv.Scalar(125,0,0),1,cv.LINE_AA,0)//좌측머리경계
+              // cv.rectangle(image,new cv.Point(col,presentY),new cv.Point(col+headW,presentY+headH),new cv.Scalar(125,0,0),1,cv.LINE_AA,0)//우측머리경계***
+              pitchesPerStem.push(recognize_pitch(image, staff, presentY+headH*0.5))
               isHead=headH-1;
           } 
-
-          image.ucharPtr(presentY,col- headW*0.5)[0]=125;
+          // image.ucharPtr(presentY,col- headW*0.5)[0]=125;//머리 중앙 x좌표를 가로지르는 회색선
           if (isHead>0){
             isHead--;
           }
       }
+      //줄기당 계이름머리가 존재할 경우에만, line당 계이름 배열에 추가
+      if(pitchesPerStem.length!=0){
+        pitchesPerLine.push([col,pitchesPerStem]);
+      }
     }
+    pitches.push(pitchesPerLine)
   }
+  console.log(pitches)
   return [image]
 }
 
@@ -428,55 +438,6 @@ function count_rect_pixels(image, rect) {
   }
   return pixels;
 } 
-
-function recognition(image, staves, objects) {
-  let object_2=[];
-  let object_3=[];
-  let maxLine=0;
-  for (let i = 1; i < objects.length; i++) {
-    let obj = objects[i];
-    let line = obj[0];
-    if (line>maxLine){
-      maxLine=line;
-    }
-    let stats = obj[1];
-    let stems = obj[2];
-    let direction = obj[3];
-    let staff = staves.slice(line * 5, (line + 1) * 5);
-    const pitch = recognize_note(image, staff, stats, stems, direction,objects);
-    if (pitch.length>0){
-      for (let j =0; j<pitch.length;j++){
-        object_2.push([objects[i][objects[i].length-4],pitch[j]]);
-      } 
-    }
-    //255=길이, stem별로 끊었기에.
-  }
-  for (let i=0; i<maxLine+1; i++){
-    let tempForSort=[];
-    for (let j=0;j<object_2.length;j++){
-      if (object_2[j][0]==i){ //줄기로 연결되어있는 다수의 음표머리의 경우에는, 밀려서 line변수가 기준이 되지 않음
-        tempForSort.push(object_2[j]); //****
-      }
-    }
-    // console.log(tempForSort)
-    tempForSort.sort(function(a,b){
-      if (a[1][1]>b[1][1]){
-        return 1;
-      }
-      if (a[1][1]<b[1][1]){
-        return -1;
-      }
-      return 0;
-    })
-    object_3.push(tempForSort);
-  }
-  for (let i=0;i<object_3.length;i++){
-    for(let j=0;j<object_3[i].length;j++){
-      put_text(image,object_3[i][j][1][0],new cv.Point(object_3[i][j][1][1],staves[object_3[i][j][0]*5+4]+weighted(60))); //라인
-    }
-  }
-  return [image, object_3];
-}
 
 function recognize_pitch(image,staff,head_center){
   let pitch_lines= Array.from({length:21},(_,i)=> [staff[4]+weighted(30)-weighted(5)*i])
@@ -494,145 +455,4 @@ function recognize_pitch(image,staff,head_center){
     }
   }
   return finalI
-}
-function recognize_note(image, staff, stats, stems, direction,objects) {
-  let [x, y, w, h, area] = stats;
-  let pitches = []
-  //줄기가 존재하는 대상에 한해 recognize_note_head가 실해됨. 온음표는 애초에 인식하기 용이한 구조
-  //note condition
-  if (stems.length>=1 && image.rows*0.5>=w && w>=weighted(10) && h >= weighted(35) && area >= weighted(95)) {
-    for (let i=0; i<stems.length; i++){
-      let pitches_temp=[]
-      let stem = stems[i]
-      const [head_exist, head_fill, head_centers]=recognize_note_head(image, stem, direction,objects)
-      if(head_centers.length>0){
-        for (let i =0; i<head_centers.length;i++){
-          pitches_temp.push(recognize_pitch(image,staff,head_centers[i]))
-        }
-      }
-      pitches.push([pitches_temp,stem[0]])
-      // put_text(image,pitches_temp,new cv.Point(stem[0]-weighted(10),y+h+weighted(50)))
-    }
-    //온음표
-  } else if (weighted(24)>= w && w>=weighted(13) && weighted(13)>= h && h>=weighted(10)) {
-    let head_center = y+(h/2)
-    let pitch = recognize_pitch(image,staff,head_center)
-    pitches.push([pitch,x+(w/2)-weighted(10)])
-    put_text(image,direction,new cv.Point(x+(w/2)-weighted(10),y+h+weighted(50)))
-    // cv.rectangle(image,new cv.Point(x,y),new cv.Point(x+w,y+h),new cv.Scalar(255, 255, 255),1,cv.LINE_AA,0)//neo1-headCenter
-  }
-  cv.rectangle(image,new cv.Point(x,y),new cv.Point(x+w,y+h),new cv.Scalar(125, 0, 0),1,cv.LINE_AA,0)//neo-영역전체        
-
-  return pitches
-}
-
-function recognize_note_head(image, stem, direction,objects) {
-  let [x_stem, y_stem, w_stem, h_stem] = stem;
-  let area_top, area_bot, area_left, area_right=0
-  let noteHalf=weighted(5)
-  //현재 area_top, bot 등등의 영역 지정은 음표가 단일일때에만 해당되는 구문
-  let topPixelsHeight_l,topPixelsHeight_r,fullCnt_l,fullCnt_r=0
-  let temp_list=[]
-  let head_centers=[]
-  if (direction=='true') {
-    for (let i =0; i<h_stem-weighted(12);i++){
-      if (image.ucharPtr(y_stem+i+weighted(12),x_stem-noteHalf)[0]==255){
-        //처음으로 유의미한 덩어리가 포착된 높이(위->아래)기록
-          area_left = x_stem - noteHalf*2;
-          area_right = x_stem;
-        if (fullCnt_l==0){
-          topPixelsHeight_l=y_stem+i+weighted(12)-1
-        }
-        if(fullCnt_l>=noteHalf){
-          area_top=topPixelsHeight_l
-          area_bot=area_top+noteHalf*2
-          temp_list.push((area_top+area_bot)/2)
-          cv.rectangle(image,new cv.Point(area_left,area_top),new cv.Point(area_right,area_bot),new cv.Scalar(125,0,0),1,cv.LINE_AA,0)//neo-가상선
-          fullCnt_l=0
-        }
-        fullCnt_l++
-      } else {
-        fullCnt_l=0
-      }
-      if (image.ucharPtr(y_stem+i+noteHalf*4,x_stem+noteHalf)[0]==255){
-        area_left = x_stem;
-        area_right = x_stem+noteHalf*2;
-        if (fullCnt_r==0){
-          topPixelsHeight_r=y_stem+i-1+noteHalf*4
-        }
-        if(fullCnt_r>=noteHalf){
-          area_top=topPixelsHeight_r
-          area_bot = area_top+noteHalf*2;
-          temp_list.push((area_top+area_bot)/2)
-          cv.rectangle(image,new cv.Point(area_left,area_top),new cv.Point(area_right,area_bot),new cv.Scalar(125,0,0),1,cv.LINE_AA,0)//neo-가상선
-          fullCnt_r=0
-        }
-        fullCnt_r++
-      } else {
-        fullCnt_r=0
-      }
-    }
-  }else{
-    for (let i =-weighted(12); i<h_stem-weighted(12);i++){
-      if (image.ucharPtr(y_stem+i,x_stem-noteHalf)[0]==255){
-        //처음으로 유의미한 덩어리가 포착된 높이(위->아래)기록
-          area_left = x_stem - noteHalf*2;
-          area_right = x_stem;
-        if (fullCnt_l==0){
-          topPixelsHeight_l=y_stem+i-1
-        }
-        if(fullCnt_l>=noteHalf){
-          area_top=topPixelsHeight_l
-          area_bot=area_top+noteHalf*2                
-          temp_list.push((area_top+area_bot)/2)
-          cv.rectangle(image,new cv.Point(area_left,area_top),new cv.Point(area_right,area_bot),new cv.Scalar(125,0,0),1,cv.LINE_AA,0)//neo-가상선
-          fullCnt_l=0
-        }
-        
-        fullCnt_l++
-      } else {
-        fullCnt_l=0
-      }
-      if (image.ucharPtr(y_stem+i,x_stem+noteHalf)[0]==255){
-        area_left = x_stem;
-        area_right = x_stem+noteHalf*2;
-        if (fullCnt_r==0){
-          topPixelsHeight_r=y_stem+i-1
-        }
-        if(fullCnt_r>=noteHalf){
-          area_top=topPixelsHeight_r
-          area_bot = area_top+noteHalf*2;
-          temp_list.push((area_top+area_bot)/2)
-          cv.rectangle(image,new cv.Point(area_left,area_top),new cv.Point(area_right,area_bot),new cv.Scalar(125,0,0),1,cv.LINE_AA,0)//neo-가상선
-          fullCnt_r=0
-        }
-        fullCnt_r++
-      } else {
-        fullCnt_r=0
-      }
-    }
-  }
-  
-  if (temp_list.length>0){
-    temp_list.sort()
-    head_centers = temp_list.filter((element,index)=> {return temp_list.indexOf(element)===index})
-    //여기까지 head_centers 정상추출됨
-  }
-  let cnt =0;
-  let cnt_max = 0
-  let pixel_cnt = count_rect_pixels(image,[area_left,area_top,area_right-area_left,area_bot-area_top])
-  // count_rect_pixels(image, [x, y, w, h]
-  for (let row=area_top; row<area_bot;row++){
-    const [end, pixels] = get_line(image,HORIZONTAL,row,area_left,area_right,5)
-    
-    if (pixels+1>weighted(5)){
-      cnt++
-      cnt_max= Math.max(cnt_max,pixels)
-      // head_center +=row
-    }
-  }
-  cv.rectangle(image,new cv.Point(x_stem,y_stem-noteHalf),new cv.Point(x_stem,y_stem+h_stem+noteHalf),new cv.Scalar(255, 255, 255),1,cv.LINE_AA,0)//neo-줄기위치
-  //줄기의 최하단 좌표를 기준, 계이름들을 분리하는 가상선을 그려준 후에, recognize_notehead를 변형하여 다수의 음표 pitch를 fetch
-
-  return [head_exist, head_fill, head_centers]
 }
