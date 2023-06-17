@@ -240,7 +240,17 @@ function object_detection(image,staves){
 
   let noteHead_h=staves[2]-staves[0]; //음표머리의 높이
   for (let i =0; i<lines;i++){
-    //
+    // let yArr=objects[i].map(function(x){
+    //   return x[1];
+    // })
+    // let area_top = Math.min(...yArr); 
+    let area_top = Math.min(...objects[i].map(item=>item[1]));//위 코드와 동일한 결과 반환
+    let area_bot = Math.max(...objects[i].map(item=>item[1]+item[3]))
+    console.log(area_top,area_bot);
+    cv.line(image, new cv.Point(0,area_top), new cv.Point(image.cols,area_top), new cv.Scalar(125,0,0),2);//줄기위치 표시
+    cv.line(image, new cv.Point(0,area_bot), new cv.Point(image.cols,area_bot), new cv.Scalar(125,0,0),2);//줄기위치 표시
+
+
     //**** line별 상하단 끝을 계산하는 구문 위치
     // 별도의 배열 생성,
     objects[i].sort((a, b) => {
