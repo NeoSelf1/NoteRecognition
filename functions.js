@@ -18,7 +18,7 @@ function remove_line(image){
       for (let col = 0; col<width;col++){
         pixels += (image.ucharPtr(row,col)[0]==255)
         //같은 x좌표를 공유하는 2개의 하얀 점이 세로로 인접할때, 줄의 길이를 의미하는 wordlineArr[col][0]에 1을 더함
-        if(image.ucharPtr(row,col)[0]==255 && image.ucharPtr(row-1,col)[0]==255){
+        if((image.ucharPtr(row,col)[0]==255||image.ucharPtr(row,col+1)[0]==255) && image.ucharPtr(row-1,col)[0]==255){
           wordlineArr[col][0]++;
           if(
             wordlineArr[col][0]>=stdHeight && //세로 선 길이가 stdHeight보다 더 길고,
@@ -206,14 +206,7 @@ function object_detection(image,staves){
   let label = new cv.Mat() // Label image (CV_32SC1 or CV_16UC1)
   let stats = new cv.Mat() // value and area value forming the bounding box
   let centroids = new cv.Mat() // centroid (x, y) (CV_64FC1)
-  let nLabel = cv.connectedComponentsWithStats(
-    closing_image,
-    label,
-    stats,
-    centroids,
-    4,
-    cv.CV_32S
-  )
+  let nLabel = cv.connectedComponentsWithStats(closing_image,label,stats,centroids,4,cv.CV_32S)
   let lines = parseInt((staves.length)/5)//6 or 7
   const objects = [...new Array(lines)].map(() => []);
   //검출한 객체들의 stats를 objects 어레이에 추가 및 정렬하는 구문
@@ -247,6 +240,9 @@ function object_detection(image,staves){
 
   let noteHead_h=staves[2]-staves[0]; //음표머리의 높이
   for (let i =0; i<lines;i++){
+    //
+    //**** line별 상하단 끝을 계산하는 구문 위치
+    // 별도의 배열 생성,
     objects[i].sort((a, b) => {
         return a[0] - b[0]
     })
