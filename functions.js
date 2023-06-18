@@ -25,7 +25,7 @@ function remove_line(image){
             image.ucharPtr(row+1,col)[0]==0 && image.ucharPtr(row+1,col+1)[0]==0// 줄이 그 밑에서 끊길때(선의 끝에 도달할때)
             ){
             //선을 그린 후에
-            cv.line(image, new cv.Point(col,wordlineArr[col][1]-stdHeight*0.2), new cv.Point(col,row+stdHeight*0.2), new cv.Scalar(0,0,0),3);
+            cv.line(image, new cv.Point(col,wordlineArr[col][1]-stdHeight*0.2), new cv.Point(col,row+stdHeight*0.2), new cv.Scalar(0,0,0),3);//세로마디선 가리는 용도
             wordlineArr[col][0]=0;//, 수치를 초기화
           }
         } else {
@@ -66,14 +66,6 @@ function remove_line(image){
       }
     }
     let myStaves=staves.map((arr)=> arr[0])
-    //for (let i =0; i<myStaves.length; i++){
-       //cv.line(image,new cv.Point(0,myStaves[i]),new cv.Point(image.cols,myStaves[i]),new cv.Scalar(125,0,0))//Staves 위치 알려주는
-      //  if (i%5==4){
-        //이 네모는 단순히 마디 간의 사이를 가로질러 Object 객체가 지나치게 크게 검출되는 것을 막는 것.
-        //cv.rectangle(image,new cv.Point(image.cols/2-300,(myStaves[i]+myStaves[i+1])/2-0.1),new cv.Point(image.cols,(myStaves[i]+myStaves[i+1])/2+0.1),new cv.Scalar(255, 0, 0),1,cv.LINE_AA,0)//가리는거
-        // cv.rectangle(image,new cv.Point(0,(myStaves[i]+myStaves[i+1])/2-1.5),new cv.Point(image.cols,(myStaves[i]+myStaves[i+1])/2+1.5),new cv.Scalar(0, 0, 0),-1,cv.LINE_AA,0)//가리는거
-      // }
-    //}
     return [image,myStaves]
 }
 
@@ -232,7 +224,7 @@ function object_detection(image,staves){
         }
       }
       // cv.rectangle(image,new cv.Point(x,y),new cv.Point(x+w,y+h), new cv.Scalar(255, 255, 255), 1, cv.LINE_AA, 0);//Object 전체영역***
-      put_text(image,finalLine,new cv.Point(x+w,y+h));
+      // put_text(image,finalLine,new cv.Point(x+w,y+h));//소속된 line 표시
       objects[finalLine].push([x,y,w,h]);
     }
   }
@@ -247,8 +239,8 @@ function object_detection(image,staves){
     // let area_top = Math.min(...yArr); 
     let area_top = Math.min(...objects[i].map(item=>item[1]));//위 코드와 동일한 결과 반환
     let area_bot = Math.max(...objects[i].map(item=>item[1]+item[3]))
-    cv.line(image, new cv.Point(0,area_top), new cv.Point(image.cols,area_top), new cv.Scalar(125,0,0),2);//줄기위치 표시
-    cv.line(image, new cv.Point(0,area_bot), new cv.Point(image.cols,area_bot), new cv.Scalar(125,0,0),2);//줄기위치 표시
+    // cv.line(image, new cv.Point(0,area_top), new cv.Point(image.cols,area_top), new cv.Scalar(125,0,0),2);//line별 최상단 
+    // cv.line(image, new cv.Point(0,area_bot), new cv.Point(image.cols,area_bot), new cv.Scalar(125,0,0),2);//line별 최하단
     lineArea.push([area_top,area_bot]);
 
     //**** line별 상하단 끝을 계산하는 구문 위치
@@ -383,8 +375,9 @@ function recognition(image,stems,headH_2,staves){//head_h = 계이름머리 높�
             image.ucharPtr(presentY+headH,col-headW*0.5+pxRange)[0]==255  ||  //          *
             image.ucharPtr(presentY+headH-pxRange,col-headW*0.5)[0]==255) &&  //       *     *
             isHead ==0){
-            // cv.rectangle(image,new cv.Point(col-headW,presentY),new cv.Point(col,presentY+headH),new cv.Scalar(125,0,0),1,cv.LINE_AA,0)//좌측머리경계***
+            cv.rectangle(image,new cv.Point(col-headW,presentY),new cv.Point(col,presentY+headH),new cv.Scalar(125,0,0),1,cv.LINE_AA,0)//좌측머리경계***
             pitchesPerStem.push(recognize_pitch(image, staff, presentY+headH*0.5))
+            put_text(image,recognize_pitch(image, staff, presentY+headH*0.5,headH),new cv.Point(col- headW*0.5,presentY+headH+24));
             isHead=headH;
         } 
         image.ucharPtr(presentY,col- headW*0.5)[0]=125;//계이름머리의 중앙 x좌표 표시
@@ -412,8 +405,9 @@ function recognition(image,stems,headH_2,staves){//head_h = 계이름머리 높�
              image.ucharPtr(presentY+headH,col+headW*0.5+pxRange)[0]==255   || //          *
              image.ucharPtr(presentY+headH-pxRange,col+headW*0.5)[0]==255) &&  //       *     *
              isHead ==0){
-              // cv.rectangle(image,new cv.Point(col,presentY),new cv.Point(col+headW,presentY+headH),new cv.Scalar(125,0,0),1,cv.LINE_AA,0)//우측머리경계***
+              cv.rectangle(image,new cv.Point(col,presentY),new cv.Point(col+headW,presentY+headH),new cv.Scalar(125,0,0),1,cv.LINE_AA,0)//우측머리경계***
               pitchesPerStem.push(recognize_pitch(image, staff, presentY+headH*0.5))
+              put_text(image,recognize_pitch(image, staff, presentY+headH*0.5),new cv.Point(col+ headW*0.5,presentY+headH+24));
               isHead=headH-1;
           } 
           // image.ucharPtr(presentY,col- headW*0.5)[0]=125;//머리 중앙 x좌표를 가로지르는 회색선
@@ -445,12 +439,12 @@ function count_rect_pixels(image, rect) {
 } 
 
 function recognize_pitch(image,staff,head_center){
-  let pitch_lines= Array.from({length:21},(_,i)=> [staff[4]+weighted(30)-weighted(5)*i])
+  let pitch_lines= Array.from({length:29},(_,i)=> [staff[4]+weighted(50)-weighted(5)*i])
   let distance=image.cols;
   let finalI;
   for (let i =0; i<pitch_lines.length; i++){
     let line= pitch_lines[i];
-    // cv.rectangle(image, new cv.Point(10,parseInt(line)),new cv.Point(image.cols,parseInt(line)), new cv.Scalar(255, 255, 255), 0.5,cv.LINE_AA,0)//neo2
+    // cv.line(image,new cv.Point(10,parseInt(line)),new cv.Point(image.cols,parseInt(line)),new cv.Scalar(125, 125, 125),1);//어손부 줄 위치
     //line 높이도 적절하게 측정되었음
     //각 오선 라인의 y좌표값
     let newDist= Math.abs(line-head_center);

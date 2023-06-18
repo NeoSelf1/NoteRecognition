@@ -7,22 +7,22 @@
   </head>
   <body>
     <div style="display: none">
-      <img id="0" crossorigin=" " src='https://blog.kakaocdn.net/dn/cfJRv5/btqEljPqrQt/a9uSkk4O2F0xCroeO8SFy1/img.png' alt = '조정하'/>
+      <!-- <img id="0" crossorigin=" " src='https://blog.kakaocdn.net/dn/cfJRv5/btqEljPqrQt/a9uSkk4O2F0xCroeO8SFy1/img.png' alt = '조정하'/> -->
       <img id="1" crossorigin=" " src='https://cdn.imweb.me/upload/S20200724abcb07db26ecf/13cf396749723.jpg' alt = 'true'/>
-      <img id="2" crossorigin=" " src='https://cdn.ustatik.com/musescore/scoredata/g/a500c3ff00a0e180ea5e77e13d978b6f7f8e99ff/score_0.svg?no-cache=1667829161' alt = '첫사랑'/>
-      <img id="3" crossorigin=" " src='https://blog.kakaocdn.net/dn/cNBMEv/btqWUMZupv5/NU656RJ7MStKwXz9bucJ9k/img.png' alt = '밤하늘의 별을'/>
+      <!-- <img id="2" crossorigin=" " src='https://cdn.ustatik.com/musescore/scoredata/g/a500c3ff00a0e180ea5e77e13d978b6f7f8e99ff/score_0.svg?no-cache=1667829161' alt = '첫사랑'/> -->
+      <!-- <img id="3" crossorigin=" " src='https://blog.kakaocdn.net/dn/cNBMEv/btqWUMZupv5/NU656RJ7MStKwXz9bucJ9k/img.png' alt = '밤하늘의 별을'/>
       <img id="4" crossorigin=" " src='https://cdn.imweb.me/upload/S20200724abcb07db26ecf/51c7d54238a85.jpg' alt = 'Lucky'/>
-      <img id="5" crossorigin=" " src='https://blog.kakaocdn.net/dn/b2kuaR/btqwdA5sEt5/LPIm1fxENPjH51dj9Y7x31/img.jpg' alt = 'Summer'/>
+      <img id="5" crossorigin=" " src='https://blog.kakaocdn.net/dn/b2kuaR/btqwdA5sEt5/LPIm1fxENPjH51dj9Y7x31/img.jpg' alt = 'Summer'/> -->
     </div>
     <div style="display: flex; flex-direction: row;">
-      <canvas style="width:33%" id="_0"></canvas>
+      <!-- <canvas style="width:33%" id="_0"></canvas> -->
       <canvas style="width:33%" id="_1"></canvas>
-      <canvas style="width:33%" id="_2"></canvas>
+      <!-- <canvas style="width:33%" id="_2"></canvas> -->
     </div>
     <div style="display: flex; flex-direction: row;">
-      <canvas style="width:33%" id="_3"></canvas>
-      <canvas style="width:33%" id="_4"></canvas>
-      <canvas style="width:33%" id="_5"></canvas>
+      <!-- <canvas style="width:33%" id="_3"></canvas> -->
+      <!-- <canvas style="width:33%" id="_4"></canvas> -->
+      <!-- <canvas style="width:33%" id="_5"></canvas> -->
     </div>
 
     <script type="text/javascript">
@@ -30,7 +30,7 @@
         cv['onRuntimeInitialized']=()=>{
           try {
             var imgElement;
-            for (let i=0; i< 6; i++){
+            for (let i=1; i< 2; i++){
               imgElement = document.getElementById(`${i}`);
               let image_1=remove_noise(imgElement);
               let [image_2,staves]=remove_line(image_1);
